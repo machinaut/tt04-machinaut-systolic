@@ -21,10 +21,10 @@ yaml_version: 4
 #
 # Here is a great example: https://github.com/davidsiaw/tt02-davidsiaw-stackcalc/blob/38c5647f83aad2aec675d566aa3d67b98f0aac81/info.yaml
 documentation: 
-  author:       "Matt Venn"
-  title:        "7 segment seconds"
+  author:       "machinaut"
+  title:        "Systolic"
   language:     "Verilog"
-  description:  "Count up to 10, one second at a time."
+  description:  "Multiply add"
 
 # Longer description of how the project works. You can use standard markdown format.
   how_it_works: |
