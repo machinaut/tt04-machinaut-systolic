@@ -24,7 +24,7 @@ module tt_um_machinaut_systolic (
     assign uio_out = 8'b00000000;  // TODO: this seems like it would create errors
 
     // Register array
-    reg [7:0] mem [0:3];
+    reg [7:0] mem [0:15];
     // Data out
     reg [7:0] data_out;
     assign uo_out = data_out;
@@ -37,6 +37,18 @@ module tt_um_machinaut_systolic (
             mem[1] <= 0;
             mem[2] <= 0;
             mem[3] <= 0;
+            mem[4] <= 0;
+            mem[5] <= 0;
+            mem[6] <= 0;
+            mem[7] <= 0;
+            mem[8] <= 0;
+            mem[9] <= 0;
+            mem[10] <= 0;
+            mem[11] <= 0;
+            mem[12] <= 0;
+            mem[13] <= 0;
+            mem[14] <= 0;
+            mem[15] <= 0;
         end else begin
             // if save is high
             if (save) begin
