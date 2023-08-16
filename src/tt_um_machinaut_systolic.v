@@ -21,22 +21,30 @@ module tt_um_machinaut_systolic (
 
     // All bidirectional IOs are inputs by default
     assign uio_oe = 8'b00000000;
+    assign uio_out = 8'b00000000;  // TODO: this seems like it would create errors
 
     // Register array
-    reg [7:0] mem ;
-    assign uo_out = mem;
+    reg [7:0] mem [0:3];
+    // Data out
+    reg [7:0] data_out;
+    assign uo_out = data_out;
 
     always @(posedge clk or posedge reset) begin
         // if reset
         if (reset) begin
             // Set all memory to zero
-            mem <= 0;
+            mem[0] <= 0;
+            mem[1] <= 0;
+            mem[2] <= 0;
+            mem[3] <= 0;
         end else begin
             // if save is high
             if (save) begin
                 // save data_in to mem
-                mem <= data_in;
+                mem[addr] <= data_in;
             end
+            // read from mem to data_out
+            data_out <= mem[0];
         end
     end
 
