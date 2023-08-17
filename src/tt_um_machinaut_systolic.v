@@ -12,51 +12,28 @@ module tt_um_machinaut_systolic (
 );
 
     wire reset = ! rst_n;
-    wire [7:0] data_in;
-    wire [6:0] addr;
-    wire save;
-    assign addr = ui_in[6:0];
-    assign save = ui_in[7];
-    assign data_in = uio_in;
+    // inputs a, b
+    wire [5:0] a;
+    wire [5:0] b;
+    assign a = ui_in[5:0];
+    assign b[1:0] = ui_in[7:6];
+    assign b[5:2] = uio_in[3:0];
+    // output c
+    reg [11:0] c;
+    assign uo_out[7:0] = c[7:0];
+    assign uio_out[7:4] = c[11:8];
 
-    // All bidirectional IOs are inputs by default
-    assign uio_oe = 8'b00000000;
-    assign uio_out = 8'b00000000;  // TODO: this seems like it would create errors
+    // High bits are output, low bits are input
+    assign uio_oe = 8'b11110000;
 
-    // Register array
-    reg [7:0] mem [0:15];
-    // Data out
-    reg [7:0] data_out;
-    assign uo_out = data_out;
-
-    always @(posedge clk or posedge reset) begin
+    always @(posedge clk) begin
         // if reset
         if (reset) begin
             // Set all memory to zero
-            mem[0] <= 0;
-            mem[1] <= 0;
-            mem[2] <= 0;
-            mem[3] <= 0;
-            mem[4] <= 0;
-            mem[5] <= 0;
-            mem[6] <= 0;
-            mem[7] <= 0;
-            mem[8] <= 0;
-            mem[9] <= 0;
-            mem[10] <= 0;
-            mem[11] <= 0;
-            mem[12] <= 0;
-            mem[13] <= 0;
-            mem[14] <= 0;
-            mem[15] <= 0;
+            c <= 0;
         end else begin
-            // if save is high
-            if (save) begin
-                // save data_in to mem
-                mem[addr] <= data_in;
-            end
-            // read from mem to data_out
-            data_out <= mem[0];
+            // Multiply
+            c <= a * b;
         end
     end
 
