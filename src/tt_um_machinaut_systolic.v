@@ -22,6 +22,7 @@ module tt_um_machinaut_systolic (
     reg [11:0] c;
     assign uo_out[7:0] = c[7:0];
     assign uio_out[7:4] = c[11:8];
+    assign uio_out[3:0] = 0;  // unused
 
     // High bits are output, low bits are input
     assign uio_oe = 8'b11110000;
