@@ -13,19 +13,15 @@ module tt_um_machinaut_systolic (
 
     wire reset = ! rst_n;
     // inputs a, b
-    wire [5:0] a;
-    wire [5:0] b;
-    assign a = ui_in[5:0];
-    assign b[1:0] = ui_in[7:6];
-    assign b[5:2] = uio_in[3:0];
+    wire [7:0] a;
+    assign a = ui_in;
     // output c
-    reg [11:0] c;
+    reg [15:0] c;
     assign uo_out[7:0] = c[7:0];
-    assign uio_out[7:4] = c[11:8];
-    assign uio_out[3:0] = 0;  // unused
+    assign uio_out[7:0] = c[15:8];
 
     // High bits are output, low bits are input
-    assign uio_oe = 8'b11110000;
+    assign uio_oe = 8'b1111111;
 
     always @(posedge clk) begin
         // if reset
@@ -34,7 +30,7 @@ module tt_um_machinaut_systolic (
             c <= 0;
         end else begin
             // Multiply
-            c <= a * b;
+            c <= a * a;
         end
     end
 
