@@ -1,5 +1,33 @@
 # Note
 
+Change the name to AI Decelerator
+
+## 4 x 4 Systolic Array doing Fused multiply add
+* A, B are BFloat16 (1, 8, 7)
+* C is FP32 (1, 8, 23)
+* A is a 4 x N matrix - read one row at a time
+* B is a N x 4 matrix - read one column at a time
+* C accumulates the product
+
+* You can tile these into a rectangle, and they should efficiently move data
+
+|     | A_0 | A_1 | A_2 | A_3 |
+| --- | --- | --- | --- | --- | --- |
+| B_0 | C00 | C01 | C02 | C03 | B_0 |
+| B_1 | C10 | C11 | C12 | C13 | B_1 |
+| B_2 | C20 | C21 | C22 | C23 | B_2 |
+| B_3 | C30 | C31 | C32 | C33 | B_3 |
+| --- | --- | --- | --- | --- | --- |
+|     | A_0 | A_1 | A_2 | A_3 |
+
+## Pipeline interface
+* Input: A, B, C, A_Q, A_sexp, B_Q, B_sexp, P_Q, P_sexp, S_Q, S_sexp, A_nan, A_inf, A_zero, A_sub, ...
+* Output: Same
+
+## Wish
+* JTAG - old/boring not new hotness (4-pin)
+* OpenOCD
+
 ## Pipeline State
 | state   | 0    | 1    | 2    | 3    | 4    | 5    | 6    | 7    | 8    | 9    | 10   | 11   | 12   | 13   | 14   | 15   |
 | ------- | ---- | ---- | ---- | ---- | ---- | ---- | ---- | ---- | ---- | ---- | ---- | ---- | ---- | ---- | ---- | ---- |
