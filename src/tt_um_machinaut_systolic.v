@@ -10,94 +10,113 @@ module tt_um_machinaut_systolic (
     input  wire       clk,      // clock
     input  wire       rst_n     // reset_n - low to reset
 );
-    // state - final dimension is block, read in 0, read out 1
-    reg [0:3][15:0] ain;  // A Input (BFloat16 4-vector)
-    reg [0:3][15:0] bin;  // B Input (BFloat16 4-vector)
-    reg [0:3][15:0] a;  // A (BFloat16 4-vector)
-    reg [0:3][15:0] b;  // B (BFloat16 4-vector)
-    reg [0:15][31:0] c;  // FP32 16-vector C
-    reg [5:0] state;
-    // alias labels for state
-    wire [1:0] cout_byte;
-    wire [3:0] cout_state;
-    wire [2:0] ab_sel;
-    wire [1:0] ab_addr;
-    wire       ab_byte;
-    assign cout_byte = state[5:4];
-    assign cout_state = state[3:0];
-    assign ab_sel = state[3];
-    assign ab_addr = state[2:1];
-    assign ab_byte = state[0];
-    // alias labels for input
-    wire run_n;
-    assign run_n = uio_in[0];
-    // input/output
-    reg [7:0] oe;
-    reg [7:0] uo;
-    reg [7:0] uout;
-    assign uio_oe = oe;
-    assign uio_out = uo;
-    assign uo_out = uout;
+    // Unused for now
+    assign uio_oe[7:4] = 4'b0000;  // Set IO directions for unused pins
+    assign uio_out[7:2] = 6'b000000;  // Set IO values for unused pins
 
+    // Systolic Data and Control
+    reg [3:0] count;  // Counts to block size
+    reg [0:15][3:0] col_buf_in;   // Column Input Buffer
+    reg [0:15] col_ctrl_buf_in;   // Column Control Input Buffer
+    reg [0:15][3:0] row_buf_in;   // Row Input Buffer
+    reg [0:15] row_ctrl_buf_in;   // Row Control Input Buffer
+    reg [0:15][3:0] col_buf_out;  // Column Output Buffer
+    reg [0:15] col_ctrl_buf_out;  // Column Control Output Buffer
+    reg [0:15][3:0] row_buf_out;  // Row Output Buffer
+    reg [0:15] row_ctrl_buf_out;  // Row Control Output Buffer
+    wire [3:0] col_in;  // Column Input
+    wire col_ctrl_in;   // Column Control Input
+    wire [3:0] row_in;  // Row Input
+    wire row_ctrl_in;   // Row Control Input
+    reg [3:0] col_out;  // Column Output
+    reg col_ctrl_out;   // Column Control Output
+    reg [3:0] row_out;  // Row Output
+    reg row_ctrl_out;   // Row Control Output
+    assign col_in = ui_in[7:4];
+    assign col_ctrl_in = uio_in[3];
+    assign row_in = ui_in[3:0];
+    assign row_ctrl_in = uio_in[2];
+    assign uo_out[7:4] = col_out;
+    assign uio_out[1] = col_ctrl_out;
+    assign uo_out[3:0] = row_out;
+    assign uio_out[0] = row_ctrl_out;
+    assign uio_oe[3:0] = 4'b0011;  // Set IO directions for controls
+
+    // Read and handle input on rising edge of clock
     always @(posedge clk) begin
-        // Set uio to inputs
-        oe <= 0;
-        uo <= 0;
-        // Zero everything if we're in reset
-        if (!rst_n) begin
-            // Set all memory to zero
-            ain <= '0;
-            bin <= '0;
-            a <= '0;
-            b <= '0;
-            c <= '0;
-            state <= '0;
-            uout <= '0;
+        if (!rst_n) begin  // Zero all regs if we're in reset
+            count <= 0;
+            col_buf_in <= 0;
+            col_ctrl_buf_in <= 0;
+            row_buf_in <= 0;
+            row_ctrl_buf_in <= 0;
+            col_buf_out <= 0;
+            col_ctrl_buf_out <= 0;
+            row_buf_out <= 0;
+            row_ctrl_buf_out <= 0;
         end else begin
-            if (!run_n) begin  // Run Systolic
-                // Systolic pipeline
-                state[3:0] <= state[3:0] + 1;
-                if (state[3:0] == 15) begin // Rollover pipeline, move blocks
-                    a <= ain;
-                    b <= {bin[0], bin[1], bin[2], bin[3][15:8], ui_in};
+            // Count up to block size
+            count <= count + 1;
+            // Read from input buffers
+            case (count)
+                'h0: begin col_buf_in['h0] <= col_in; col_ctrl_buf_in['h0] <= col_ctrl_in; row_buf_in['h0] <= row_in; row_ctrl_buf_in['h0] <= row_ctrl_in; end
+                'h1: begin col_buf_in['h1] <= col_in; col_ctrl_buf_in['h1] <= col_ctrl_in; row_buf_in['h1] <= row_in; row_ctrl_buf_in['h1] <= row_ctrl_in; end
+                'h2: begin col_buf_in['h2] <= col_in; col_ctrl_buf_in['h2] <= col_ctrl_in; row_buf_in['h2] <= row_in; row_ctrl_buf_in['h2] <= row_ctrl_in; end
+                'h3: begin col_buf_in['h3] <= col_in; col_ctrl_buf_in['h3] <= col_ctrl_in; row_buf_in['h3] <= row_in; row_ctrl_buf_in['h3] <= row_ctrl_in; end
+                'h4: begin col_buf_in['h4] <= col_in; col_ctrl_buf_in['h4] <= col_ctrl_in; row_buf_in['h4] <= row_in; row_ctrl_buf_in['h4] <= row_ctrl_in; end
+                'h5: begin col_buf_in['h5] <= col_in; col_ctrl_buf_in['h5] <= col_ctrl_in; row_buf_in['h5] <= row_in; row_ctrl_buf_in['h5] <= row_ctrl_in; end
+                'h6: begin col_buf_in['h6] <= col_in; col_ctrl_buf_in['h6] <= col_ctrl_in; row_buf_in['h6] <= row_in; row_ctrl_buf_in['h6] <= row_ctrl_in; end
+                'h7: begin col_buf_in['h7] <= col_in; col_ctrl_buf_in['h7] <= col_ctrl_in; row_buf_in['h7] <= row_in; row_ctrl_buf_in['h7] <= row_ctrl_in; end
+                'h8: begin col_buf_in['h8] <= col_in; col_ctrl_buf_in['h8] <= col_ctrl_in; row_buf_in['h8] <= row_in; row_ctrl_buf_in['h8] <= row_ctrl_in; end
+                'h9: begin col_buf_in['h9] <= col_in; col_ctrl_buf_in['h9] <= col_ctrl_in; row_buf_in['h9] <= row_in; row_ctrl_buf_in['h9] <= row_ctrl_in; end
+                'hA: begin col_buf_in['hA] <= col_in; col_ctrl_buf_in['hA] <= col_ctrl_in; row_buf_in['hA] <= row_in; row_ctrl_buf_in['hA] <= row_ctrl_in; end
+                'hB: begin col_buf_in['hB] <= col_in; col_ctrl_buf_in['hB] <= col_ctrl_in; row_buf_in['hB] <= row_in; row_ctrl_buf_in['hB] <= row_ctrl_in; end
+                'hC: begin col_buf_in['hC] <= col_in; col_ctrl_buf_in['hC] <= col_ctrl_in; row_buf_in['hC] <= row_in; row_ctrl_buf_in['hC] <= row_ctrl_in; end
+                'hD: begin col_buf_in['hD] <= col_in; col_ctrl_buf_in['hD] <= col_ctrl_in; row_buf_in['hD] <= row_in; row_ctrl_buf_in['hD] <= row_ctrl_in; end
+                'hE: begin col_buf_in['hE] <= col_in; col_ctrl_buf_in['hE] <= col_ctrl_in; row_buf_in['hE] <= row_in; row_ctrl_buf_in['hE] <= row_ctrl_in; end
+                'hF: begin
+                    // Clear buffers
+                    col_buf_in <= 0;
+                    col_ctrl_buf_in <= 0;
+                    row_buf_in <= 0;
+                    row_ctrl_buf_in <= 0;
+                    // Swap Buffers
+                    col_buf_out <= {col_buf_in[0:14], col_in};
+                    col_ctrl_buf_out <= {col_ctrl_buf_in[0:14], col_ctrl_in};
+                    row_buf_out <= {row_buf_in[0:14], row_in};
+                    row_ctrl_buf_out <= {row_ctrl_buf_in[0:14], row_ctrl_in};
                 end
-                if (!ab_sel) begin  // A vector
-                    case (ab_addr)
-                        0: case (ab_byte) 0: begin ain[0][15:8] <= ui_in; uout <= a[0][7:0]; end 1: begin ain[0][7:0] <= ui_in; uout <= a[1][15:8]; end endcase
-                        1: case (ab_byte) 0: begin ain[1][15:8] <= ui_in; uout <= a[1][7:0]; end 1: begin ain[1][7:0] <= ui_in; uout <= a[2][15:8]; end endcase
-                        2: case (ab_byte) 0: begin ain[2][15:8] <= ui_in; uout <= a[2][7:0]; end 1: begin ain[2][7:0] <= ui_in; uout <= a[3][15:8]; end endcase
-                        3: case (ab_byte) 0: begin ain[3][15:8] <= ui_in; uout <= a[3][7:0]; end 1: begin ain[3][7:0] <= ui_in; uout <= b[0][15:8]; end endcase
-                    endcase
-                end else begin  // B vector
-                    case (ab_addr)
-                        0: case (ab_byte) 0: begin bin[0][15:8] <= ui_in; uout <= b[0][7:0]; end 1: begin bin[0][7:0] <= ui_in; uout <= b[1][15:8]; end endcase
-                        1: case (ab_byte) 0: begin bin[1][15:8] <= ui_in; uout <= b[1][7:0]; end 1: begin bin[1][7:0] <= ui_in; uout <= b[2][15:8]; end endcase
-                        2: case (ab_byte) 0: begin bin[2][15:8] <= ui_in; uout <= b[2][7:0]; end 1: begin bin[2][7:0] <= ui_in; uout <= b[3][15:8]; end endcase
-                        3: case (ab_byte) 0: begin bin[3][15:8] <= ui_in; uout <= b[3][7:0]; end 1: begin bin[3][7:0] <= ui_in; uout <= ain[0][15:8]; end endcase
-                    endcase
-                end
-            end else begin
-                // Read out C vector
-                state[5:0] <= state[5:0] + 1;
-                case (cout_state)
-                    0: case (cout_byte) 0: uout <= c[0][31:24]; 1: uout <= c[0][23:16]; 2: uout <= c[0][15:8]; 3: uout <= c[0][7:0]; endcase
-                    1: case (cout_byte) 0: uout <= c[1][31:24]; 1: uout <= c[1][23:16]; 2: uout <= c[1][15:8]; 3: uout <= c[1][7:0]; endcase
-                    2: case (cout_byte) 0: uout <= c[2][31:24]; 1: uout <= c[2][23:16]; 2: uout <= c[2][15:8]; 3: uout <= c[2][7:0]; endcase
-                    3: case (cout_byte) 0: uout <= c[3][31:24]; 1: uout <= c[3][23:16]; 2: uout <= c[3][15:8]; 3: uout <= c[3][7:0]; endcase
-                    4: case (cout_byte) 0: uout <= c[4][31:24]; 1: uout <= c[4][23:16]; 2: uout <= c[4][15:8]; 3: uout <= c[4][7:0]; endcase
-                    5: case (cout_byte) 0: uout <= c[5][31:24]; 1: uout <= c[5][23:16]; 2: uout <= c[5][15:8]; 3: uout <= c[5][7:0]; endcase
-                    6: case (cout_byte) 0: uout <= c[6][31:24]; 1: uout <= c[6][23:16]; 2: uout <= c[6][15:8]; 3: uout <= c[6][7:0]; endcase
-                    7: case (cout_byte) 0: uout <= c[7][31:24]; 1: uout <= c[7][23:16]; 2: uout <= c[7][15:8]; 3: uout <= c[7][7:0]; endcase
-                    8: case (cout_byte) 0: uout <= c[8][31:24]; 1: uout <= c[8][23:16]; 2: uout <= c[8][15:8]; 3: uout <= c[8][7:0]; endcase
-                    9: case (cout_byte) 0: uout <= c[9][31:24]; 1: uout <= c[9][23:16]; 2: uout <= c[9][15:8]; 3: uout <= c[9][7:0]; endcase
-                    10: case (cout_byte) 0: uout <= c[10][31:24]; 1: uout <= c[10][23:16]; 2: uout <= c[10][15:8]; 3: uout <= c[10][7:0]; endcase
-                    11: case (cout_byte) 0: uout <= c[11][31:24]; 1: uout <= c[11][23:16]; 2: uout <= c[11][15:8]; 3: uout <= c[11][7:0]; endcase
-                    12: case (cout_byte) 0: uout <= c[12][31:24]; 1: uout <= c[12][23:16]; 2: uout <= c[12][15:8]; 3: uout <= c[12][7:0]; endcase
-                    13: case (cout_byte) 0: uout <= c[13][31:24]; 1: uout <= c[13][23:16]; 2: uout <= c[13][15:8]; 3: uout <= c[13][7:0]; endcase
-                    14: case (cout_byte) 0: uout <= c[14][31:24]; 1: uout <= c[14][23:16]; 2: uout <= c[14][15:8]; 3: uout <= c[14][7:0]; endcase
-                    15: case (cout_byte) 0: uout <= c[15][31:24]; 1: uout <= c[15][23:16]; 2: uout <= c[15][15:8]; 3: uout <= c[15][7:0]; endcase
-                endcase
-            end
+            endcase
+        end
+    end
+
+    // Write to output on falling edge of clock
+    always @(negedge clk) begin
+        if (!rst_n) begin  // Zero all regs if we're in reset
+            col_out <= 0;
+            col_ctrl_out <= 0;
+            row_out <= 0;
+            row_ctrl_out <= 0;
+        end else begin
+            // Write from output buffers
+            case (count)
+                'h0: begin col_out <= col_buf_out['h0]; col_ctrl_out <= col_ctrl_buf_out['h0]; row_out <= row_buf_out['h0]; row_ctrl_out <= row_ctrl_buf_out['h0]; end
+                'h1: begin col_out <= col_buf_out['h1]; col_ctrl_out <= col_ctrl_buf_out['h1]; row_out <= row_buf_out['h1]; row_ctrl_out <= row_ctrl_buf_out['h1]; end
+                'h2: begin col_out <= col_buf_out['h2]; col_ctrl_out <= col_ctrl_buf_out['h2]; row_out <= row_buf_out['h2]; row_ctrl_out <= row_ctrl_buf_out['h2]; end
+                'h3: begin col_out <= col_buf_out['h3]; col_ctrl_out <= col_ctrl_buf_out['h3]; row_out <= row_buf_out['h3]; row_ctrl_out <= row_ctrl_buf_out['h3]; end
+                'h4: begin col_out <= col_buf_out['h4]; col_ctrl_out <= col_ctrl_buf_out['h4]; row_out <= row_buf_out['h4]; row_ctrl_out <= row_ctrl_buf_out['h4]; end
+                'h5: begin col_out <= col_buf_out['h5]; col_ctrl_out <= col_ctrl_buf_out['h5]; row_out <= row_buf_out['h5]; row_ctrl_out <= row_ctrl_buf_out['h5]; end
+                'h6: begin col_out <= col_buf_out['h6]; col_ctrl_out <= col_ctrl_buf_out['h6]; row_out <= row_buf_out['h6]; row_ctrl_out <= row_ctrl_buf_out['h6]; end
+                'h7: begin col_out <= col_buf_out['h7]; col_ctrl_out <= col_ctrl_buf_out['h7]; row_out <= row_buf_out['h7]; row_ctrl_out <= row_ctrl_buf_out['h7]; end
+                'h8: begin col_out <= col_buf_out['h8]; col_ctrl_out <= col_ctrl_buf_out['h8]; row_out <= row_buf_out['h8]; row_ctrl_out <= row_ctrl_buf_out['h8]; end
+                'h9: begin col_out <= col_buf_out['h9]; col_ctrl_out <= col_ctrl_buf_out['h9]; row_out <= row_buf_out['h9]; row_ctrl_out <= row_ctrl_buf_out['h9]; end
+                'hA: begin col_out <= col_buf_out['hA]; col_ctrl_out <= col_ctrl_buf_out['hA]; row_out <= row_buf_out['hA]; row_ctrl_out <= row_ctrl_buf_out['hA]; end
+                'hB: begin col_out <= col_buf_out['hB]; col_ctrl_out <= col_ctrl_buf_out['hB]; row_out <= row_buf_out['hB]; row_ctrl_out <= row_ctrl_buf_out['hB]; end
+                'hC: begin col_out <= col_buf_out['hC]; col_ctrl_out <= col_ctrl_buf_out['hC]; row_out <= row_buf_out['hC]; row_ctrl_out <= row_ctrl_buf_out['hC]; end
+                'hD: begin col_out <= col_buf_out['hD]; col_ctrl_out <= col_ctrl_buf_out['hD]; row_out <= row_buf_out['hD]; row_ctrl_out <= row_ctrl_buf_out['hD]; end
+                'hE: begin col_out <= col_buf_out['hE]; col_ctrl_out <= col_ctrl_buf_out['hE]; row_out <= row_buf_out['hE]; row_ctrl_out <= row_ctrl_buf_out['hE]; end
+                'hF: begin col_out <= col_buf_out['hF]; col_ctrl_out <= col_ctrl_buf_out['hF]; row_out <= row_buf_out['hF]; row_ctrl_out <= row_ctrl_buf_out['hF]; end
+            endcase
         end
     end
 
