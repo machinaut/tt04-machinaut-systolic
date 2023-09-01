@@ -1,6 +1,67 @@
 # Note
 
-Change the name to AI Decelerator
+## Design Considerations
+* A simple as possible while keeping to the spirit of the thing
+* Standard floating point formats, despite better (smaller) alternative available
+* No features outside of super simple FMA array
+* Maximize use of the ui_in (read 8 bits every clock) and uo_out (write 8 bits every clock)
+* Use uio for control and debug
+* In theory could be tiled into larger units, but in practice I won't get that many units
+* Matches what python does in rounding, not worried about other rounding modes
+* Rounds inbetween multiply and add, instead of keeping precision
+
+## MVP:
+* Get C read-out working
+* Get C read-in working
+* Test C read-in and read-out
+* Make placeholder pipeline stages
+* Make A.B + C pipeline_15 stage
+* Test single-block A.B, and read out C
+* Figure out how to divide pipeline
+* Implement pipeline parts, debugging in gtkwave
+* Test pipeline w/ random numbers for hours
+
+## TODO:
+* Change the name to AI Decelerator
+* Check timing for sanity
+* JTAG-like shift register for all state bits
+* Other float rounding modes
+* Schematic for hooking it up to laptop to test (somehow)
+* Schematic for tiling these into systolic 4x4, including handling muxing and readout
+
+## UIO Assignment
+* 1 - Mode Input (0: AB Systolic, 1: C read in/out) - Only happens at block boundary
+* 1 - Mode Output (will lag because C is larger than A + B)
+* 1 - Size (0: BFloat16, 1: FP32)
+* 1 - unused
+* 4 - Debug (JTAG or similar)
+
+## Running and Modes
+* Holding rst_n low for a cycle will zero out the internal state
+* From there, if run is high, we will step the pipeline, otherwise we will idle through clocks
+  * When we run, we advance the state, and we'll start at state 0
+* If mode is 0, we'll be doing the normal systolic process every clock
+  * inputs will be read into A_in and B_in (next block)
+  * outputs will be read out from A and B (current block)
+  * pipeline stages will advance (processing previous block and current block)
+  * state will increment every clock and wrap around after 15
+* If mode is 1, we'll be reading in C and writing out C, based on size
+  * this will start at the next time state rolls over
+  * state will increment every clock and wrap around after 15 if size:0 or 31 if size:1
+  * inputs will be read into C directly, and C will be read out to output directly
+* Size sets the size of C read out/read in (only during mode:1)
+  * If size is 0, we'll only read out the BF16 part of C, and read in a BF16 for C
+  * If size is 1, we'll read out the full FP32 C, and there will be twice as many cycles
+  * Size=0 can tile comfortably since C is same size as A+B
+  * Size=1 can be used to get more accurate answers, but cannot tile since the size is mismatched
+
+## Tiling Alternative
+* Inputs and outputs are two half-bytes -- top half is column, bottom half is row (or vice versa)
+* Inputs and outputs are processed 4 bits at a time
+* No need for input or output mux when tiling
+* Hook up 4 inputs to column above, 4 outputs to column below, and 4 inputs to the row before, and 4 outputs to the row after
+* Hook up all UIO signals to all tiles
+* Tiling scan-chain should do the right thing with these
 
 ## 4 x 4 Systolic Array doing Fused multiply add
 * A, B are BFloat16 (1, 8, 7)
@@ -21,12 +82,11 @@ Change the name to AI Decelerator
 |     | A_0 | A_1 | A_2 | A_3 |
 
 ## Pipeline interface
-* Input: A, B, C, A_Q, A_sexp, B_Q, B_sexp, P_Q, P_sexp, S_Q, S_sexp, A_nan, A_inf, A_zero, A_sub, ...
-* Output: Same
-
-## Wish
-* JTAG - old/boring not new hotness (4-pin)
-* OpenOCD
+* Input: i, j, A_i, B_j, C_ji, A*, B*, C*, P*, S*
+* Input Stars have: V_sig, V_sexp, V_qgrs, V_nan, V_inf, V_zero, V_sub
+* Output: Same as input
+* Output of final stage (pipe_15): also has new C value
+* Debug: Scan-chain of all the pipeline stages in order after all the central states and buffers
 
 ## Pipeline State
 | state   | 0    | 1    | 2    | 3    | 4    | 5    | 6    | 7    | 8    | 9    | 10   | 11   | 12   | 13   | 14   | 15   |
