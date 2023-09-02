@@ -41,75 +41,48 @@ module tile ();
     wire [0:1] row_ctrl_con; // Row Control Connections
 
     // Tile 00
-    assign uio_out[0][0][3] = col_ctrl_in[0];
-    assign uio_out[0][0][2] = row_ctrl_in[0];
-    assign uio_out[0][0][1] = col_ctrl_out[0];
-    assign uio_out[0][0][0] = row_ctrl_out[0];
     tt_um_machinaut_systolic tile00 (
         .ui_in   ({col_in[0], row_in[0]}),
         .uo_out  ({col_con[0], row_con[0]}),
-        .uio_in  (uio_in[0][0]),
-        .uio_out (uio_out[0][0]),
-        .uio_oe  (uio_oe[0][0]),
+        .uio_in  ({uio_in[0][0][7:4], col_ctrl_in[0], row_ctrl_in[0], uio_in[0][0][1:0]}),
+        .uio_out ({uio_out[0][0][7:2], col_ctrl_con[0], row_ctrl_con[0]}),
+        .uio_oe  ({uio_oe[0][0]}),
         .ena     (ena),
         .clk     (clk),
         .rst_n   (rst_n)
     );
     // Tile 01
-    assign uio_out[0][1][3] = col_ctrl_in[1];
-    assign uio_out[0][1][2] = row_ctrl_in[1];
-    assign uio_out[0][1][1] = col_ctrl_out[1];
-    assign uio_out[0][1][0] = row_ctrl_out[1];
     tt_um_machinaut_systolic tile01 (
         .ui_in   ({col_in[1], row_con[0]}),
         .uo_out  ({col_con[1], row_out[0]}),
-        .uio_in  (uio_in[0][1]),
-        .uio_out (uio_out[0][1]),
-        .uio_oe  (uio_oe[0][1]),
+        .uio_in  ({uio_in[0][1][7:4], col_ctrl_in[1], row_ctrl_con[0], uio_in[0][1][1:0]}),
+        .uio_out ({uio_out[0][1][7:2], col_ctrl_con[1], row_ctrl_out[0]}),
+        .uio_oe  ({uio_oe[0][1]}),
         .ena     (ena),
         .clk     (clk),
         .rst_n   (rst_n)
     );
     // Tile 10
-    assign uio_out[1][0][3] = col_ctrl_in[2];
-    assign uio_out[1][0][2] = row_ctrl_in[2];
-    assign uio_out[1][0][1] = col_ctrl_out[2];
-    assign uio_out[1][0][0] = row_ctrl_out[2];
     tt_um_machinaut_systolic tile10 (
         .ui_in   ({col_con[0], row_in[1]}),
         .uo_out  ({col_out[0], row_con[1]}),
-        .uio_in  (uio_in[1][0]),
-        .uio_out (uio_out[1][0]),
-        .uio_oe  (uio_oe[1][0]),
+        .uio_in  ({uio_in[1][0][7:4], col_ctrl_con[0], row_ctrl_in[1], uio_in[1][0][1:0]}),
+        .uio_out ({uio_out[1][0][7:2], col_ctrl_out[0], row_ctrl_con[1]}),
+        .uio_oe  ({uio_oe[1][0]}),
         .ena     (ena),
         .clk     (clk),
         .rst_n   (rst_n)
     );
     // Tile 11
-    assign uio_out[1][1][3] = col_ctrl_in[3];
-    assign uio_out[1][1][2] = row_ctrl_in[3];
-    assign uio_out[1][1][1] = col_ctrl_out[3];
-    assign uio_out[1][1][0] = row_ctrl_out[3];
     tt_um_machinaut_systolic tile11 (
         .ui_in   ({col_con[1], row_con[1]}),
         .uo_out  ({col_out[1], row_out[1]}),
-        .uio_in  (uio_in[1][1]),
-        .uio_out (uio_out[1][1]),
-        .uio_oe  (uio_oe[1][1]),
+        .uio_in  ({uio_in[1][1][7:4], col_ctrl_con[1], row_ctrl_con[1], uio_in[1][1][1:0]}),
+        .uio_out ({uio_out[1][1][7:2], col_ctrl_out[1], row_ctrl_out[1]}),
+        .uio_oe  ({uio_oe[1][1]}),
         .ena     (ena),
         .clk     (clk),
         .rst_n   (rst_n)
     );
-
-    // tt_um_machinaut_systolic tile00 (
-    //     .ui_in      (ui_in),    // Dedicated inputs
-    //     .uo_out     (uo_out),   // Dedicated outputs
-    //     .uio_in     (uio_in),   // IOs: Input path
-    //     .uio_out    (uio_out),  // IOs: Output path
-    //     .uio_oe     (uio_oe),   // IOs: Enable path (active high: 0=input, 1=output)
-    //     .ena        (ena),      // enable - goes high when design is selected
-    //     .clk        (clk),      // clock
-    //     .rst_n      (rst_n)     // not reset
-    // );
 
 endmodule
