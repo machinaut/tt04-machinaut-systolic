@@ -81,6 +81,9 @@ module tt_um_machinaut_systolic (
     reg col_shift_done;    // Whether we've finished shifting the column (and now passing data)
     reg row_shift_done;    // Whether we've finished shifting the row (and now passing data)
 
+    // Genvars
+    genvar i;
+
     // Addresses (in Hex)
     // * 01 - Internal State
     // * 02 - A (Math Vector)
@@ -97,31 +100,29 @@ module tt_um_machinaut_systolic (
     //   28 - signed Q (2.23) with guard, round, sticky
     //    4 - flag bits (nan, inf, zero, sub)
     //   20 - unused
-    reg [63:0] pipe_state [0:15];
+    // reg [63:0] pipe_state [0:15];
 
-    // Genvars
-    genvar i;
 
-    // Zero array of pipe_state regs
-    generate
-        for (i = 0; i < 16; i++) begin
-            always @(posedge clk) begin
-                if (!rst_n) begin
-                    pipe_state[i] <= 0;
-                end else begin
-                    // write from column or row
-                    // xor now to cause synthesis
-                    if (count == 15) begin  // At end of block
-                        if (col_ctrl_buf_in[5]) begin  // If the shift-in bit is set
-                            if (col_ctrl_buf_in[15:8] == 'h10 + i) begin  // If the address matches
-                                pipe_state[i] <= pipe_state[i] ^ {col_buf_in[63:4], col_in};
-                            end
-                        end
-                    end
-                end
-            end
-        end
-    endgenerate
+    // // Zero array of pipe_state regs
+    // generate
+    //     for (i = 0; i < 16; i++) begin
+    //         always @(posedge clk) begin
+    //             if (!rst_n) begin
+    //                 pipe_state[i] <= 0;
+    //             end else begin
+    //                 // write from column or row
+    //                 // xor now to cause synthesis
+    //                 if (count == 15) begin  // At end of block
+    //                     if (col_ctrl_buf_in[5]) begin  // If the shift-in bit is set
+    //                         if (col_ctrl_buf_in[15:8] == 'h10 + i) begin  // If the address matches
+    //                             pipe_state[i] <= pipe_state[i] ^ {col_buf_in[63:4], col_in};
+    //                         end
+    //                     end
+    //                 end
+    //             end
+    //         end
+    //     end
+    // endgenerate
 
     // Read and handle input on rising edge of clock
     always @(posedge clk) begin
