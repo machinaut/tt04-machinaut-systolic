@@ -203,7 +203,31 @@ module tt_um_machinaut_systolic (
             row_ctrl_buf_out <= 0;
         end else begin
             if (count == 15) begin
-                col_buf_out <= {col_buf_in[63:4], col_in};
+                if (col_ctrl_buf_in[5]) begin  // If the shift-in bit is set
+                    if (col_ctrl_buf_in[15:8] == 'h02) begin
+                        col_buf_out <= A;
+                    end else if (col_ctrl_buf_in[15:8] == 'h04) begin
+                        col_buf_out <= B;
+                    end else if (col_ctrl_buf_in[15:8] == 'h08) begin
+                        col_buf_out <= C[511:448];
+                    end else if (col_ctrl_buf_in[15:8] == 'h09) begin
+                        col_buf_out <= C[447:384];
+                    end else if (col_ctrl_buf_in[15:8] == 'h0A) begin
+                        col_buf_out <= C[383:320];
+                    end else if (col_ctrl_buf_in[15:8] == 'h0B) begin
+                        col_buf_out <= C[319:256];
+                    end else if (col_ctrl_buf_in[15:8] == 'h0C) begin
+                        col_buf_out <= C[255:192];
+                    end else if (col_ctrl_buf_in[15:8] == 'h0D) begin
+                        col_buf_out <= C[191:128];
+                    end else if (col_ctrl_buf_in[15:8] == 'h0E) begin
+                        col_buf_out <= C[127:64];
+                    end else if (col_ctrl_buf_in[15:8] == 'h0F) begin
+                        col_buf_out <= C[63:0];
+                    end else begin
+                        col_buf_out <= {col_buf_in[63:4], col_in};
+                    end
+                end
                 row_buf_out <= {row_buf_in[63:4], row_in};
                 col_ctrl_buf_out <= {col_ctrl_buf_in[15:1], col_ctrl_in};
                 row_ctrl_buf_out <= {row_ctrl_buf_in[15:1], row_ctrl_in};
