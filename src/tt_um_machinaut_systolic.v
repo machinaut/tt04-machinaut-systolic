@@ -60,6 +60,8 @@ module tt_um_machinaut_systolic (
     reg [2:0] col_ctrl_buf_in;
     wire [3:0] col_ctrl_in_full;
     assign col_ctrl_in_full = {col_ctrl_buf_in, col_ctrl_in};
+    wire [1:0] col_ctrl_addr;
+    assign col_ctrl_addr = col_ctrl_in_full[3:2];
     // Row Input
     wire [3:0] row_in;
     assign row_in = ui_in[3:0];
@@ -73,6 +75,8 @@ module tt_um_machinaut_systolic (
     reg [2:0] row_ctrl_buf_in;
     wire [3:0] row_ctrl_in_full;
     assign row_ctrl_in_full = {row_ctrl_buf_in, row_ctrl_in};
+    wire [1:0] row_ctrl_addr;
+    assign row_ctrl_addr = row_ctrl_in_full[3:2];
     // Column Output
     reg [3:0] col_out;
     assign uo_out[7:4] = col_out;
@@ -149,8 +153,8 @@ module tt_um_machinaut_systolic (
             row_ctrl_buf_out <= 0;
         end else begin
             if (boundary) begin
-                col_buf_out <= col_in_full;
-                row_buf_out <= row_in_full;
+                col_buf_out <= (col_ctrl_addr == 2) ? C[0] : (col_ctrl_addr == 3) ? C[2] : col_in_full;
+                row_buf_out <= (row_ctrl_addr == 2) ? C[1] : (row_ctrl_addr == 3) ? C[3] : row_in_full;
                 col_ctrl_buf_out <= col_ctrl_in_full;
                 row_ctrl_buf_out <= row_ctrl_in_full;
             end
