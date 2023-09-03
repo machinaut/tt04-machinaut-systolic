@@ -16,8 +16,8 @@ def random_sequence(seed, N=10):
     return {
         'cols': [rs.randint(0, 2**16-1) for _ in range(N)],
         'rows': [rs.randint(0, 2**16-1) for _ in range(N)],
-        'col_ctrls': [rs.randint(0, 2**4-1) for _ in range(N)],
-        'row_ctrls': [rs.randint(0, 2**4-1) for _ in range(N)],
+        'col_ctrls': [rs.randint(0, 7) for _ in range(N)],
+        'row_ctrls': [rs.randint(0, 7) for _ in range(N)],
     }
 
 
@@ -56,9 +56,9 @@ async def check_block(dut, col_in, row_in, col_ctrl_in, row_ctrl_in, col_out=Non
         dut.uio_in.value = uio_in
         if check_out:
             uo_out = int(col_out_h[i] + row_out_h[i], 16)
-            assert dut.uo_out.value == uo_out, f"i={i}, dut.uo_out={dut.uo_out.value:04x} != {uo_out:04x}"
+            assert dut.uo_out.value == uo_out, f"i={i}, dut.uo_out={dut.uo_out.value} != {uo_out}"
             uio_out = int(col_ctrl_out_b[i] + row_ctrl_out_b[i], 2)
-            assert dut.uio_out.value == uio_out, f"i={i}, dut.uio_out={dut.uio_out.value:04b} != {uio_out:04b}"
+            assert dut.uio_out.value == uio_out, f"i={i}, dut.uio_out={dut.uio_out.value} != {uio_out}"
         await ClockCycles(dut.clk, 1, rising=False)
 
 
@@ -106,12 +106,9 @@ async def test_block(dut):
     # Start with a reset
     await reset(dut)
     # Go through one blocks
-    col_ctl = bin(0xc)[2:]
-    row_ctl = bin(0xb)[2:]
     for i in range(4):
         await Timer(3, units="us")
         dut.ui_in.value = (0x0f - i + (i << 4)) % 256
-        dut.uio_in.value = int(col_ctl[i] + row_ctl[i] + '00', 2)
         await ClockCycles(dut.clk, 1, rising=False)
     # Go through second block
     for i in range(4):
@@ -143,7 +140,37 @@ async def test_check_random_sequence(dut):
     # Reset again
     await reset(dut)
     # Block sequence again
-    await check_random_sequence(dut, seed=0)
+    await check_random_sequence(dut, seed=1)
+    # Settle
+    await reset(dut)
+    await Timer(20, units="us")
+
+
+@cocotb.test()
+async def test_check_xor_sequence(dut):
+    dut._log.info("start")
+    clock = Clock(dut.clk, 10, units="us")
+    cocotb.start_soon(clock.start())
+
+    # Start with a reset
+    await reset(dut)
+
+    # Make sequence
+    dut._log.info("xor sequence")
+    for i in range(16):
+        await check_block(dut, col_in=1 << i, row_in=0, col_ctrl_in=0, row_ctrl_in=0)
+    # Flush sequence
+    dut._log.info("flush")
+    await check_block(dut, col_in=0, row_in=0, col_ctrl_in=0, row_ctrl_in=0)
+    # Read out accumulated xor
+    dut._log.info("read xor")
+    await check_block(dut, col_in=0, row_in=0, col_ctrl_in=0b1000, row_ctrl_in=0b1000,
+                        col_out=0, row_out=0, col_ctrl_out=0, row_ctrl_out=0)
+    await check_block(dut, col_in=0xFF00, row_in=0xFF00, col_ctrl_in=0b1100, row_ctrl_in=0b1100,
+                        col_out=0xFF00, row_out=0xFF00, col_ctrl_out=0b1000, row_ctrl_out=0b1000)
+    await check_block(dut, col_in=0xFF00, row_in=0xFF00, col_ctrl_in=0, row_ctrl_in=0,
+                        col_out=0xFF00, row_out=0xFF00, col_ctrl_out=0b1100, row_ctrl_out=0b1100)
+
     # Settle
     await reset(dut)
     await Timer(20, units="us")
