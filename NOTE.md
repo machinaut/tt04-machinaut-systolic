@@ -22,7 +22,7 @@
 * Test pipeline w/ random numbers for hours
 
 ## TODO:
-* Change the name to AI Decelerator
+* Change the name to AI **Decelerator**
 * Check timing for sanity
 * JTAG-like shift register for all state bits
 * Other float rounding modes
@@ -109,3 +109,29 @@
 | pipe_13 | C030 | C100 | C110 | C120 | C130 | C200 | C210 | C220 | C230 | C300 | C310 | C320 | C330 | C001 | C011 | C021 |
 | pipe_14 | C020 | C030 | C100 | C110 | C120 | C130 | C200 | C210 | C220 | C230 | C300 | C310 | C320 | C330 | C001 | C011 |
 | pipe_15 | C010 | C020 | C030 | C100 | C110 | C120 | C130 | C200 | C210 | C220 | C230 | C300 | C310 | C320 | C330 | C001 |
+
+## Control Signals
+
+* 8-bit Address, 8-bit Command
+
+Addresses (in Hex)
+* 01 - Internal State
+* 02 - A (Math Vector)
+* 04 - B (Math Vector)
+* 08-0F - C (Math Vector)
+* 12 - X (Math Vector)
+* 14 - Y (Math Vector)
+* 18-1F - Z (Math Vector)
+* 8* - Pipeline A (* is stage, 0-F)
+* 9* - Pipeline B
+* A* - Pipeline C
+* B* - Pipeline P
+* C* - Pipeline S
+* D* - Pipeline X
+* E* - Pipeline Y
+* F* - Pipeline Z
+
+Control Bits
+* 7 - 0: Idle, 1: Run (Advance the pipeline this block or not)
+* 6 - 0: Step, 1: Continuous (If running, how much to advance pipeline this block)
+* 5 - 0: Pass, 1: Shift In (Shift In data and then set _shift reg and pass the rest)
