@@ -149,6 +149,18 @@ module tt_um_machinaut_systolic (
         end
     endgenerate
 
+    // Increment handling
+    always @(posedge clk) begin
+        if (!rst_n) begin  // Zero all regs if we're in reset
+            count <= 0;
+            pipe_count <= 0;
+            continuous <= 0;
+        end else begin
+            count <= count + 1;
+            if (continuous) pipe_count <= pipe_count + 1;
+        end
+    end
+
     // Read and handle input on rising edge of clock
     always @(posedge clk) begin
         if (!rst_n) begin  // Zero all regs if we're in reset
@@ -158,9 +170,6 @@ module tt_um_machinaut_systolic (
             X <= 0;
             Y <= 0;
             Z <= 0;
-            count <= 0;
-            pipe_count <= 0;
-            continuous <= 0;
             col_shift_done <= 0;
             row_shift_done <= 0;
         end 
@@ -174,10 +183,12 @@ module tt_um_machinaut_systolic (
             col_ctrl_buf_out <= 0;
             row_ctrl_buf_out <= 0;
         end else begin
-            col_buf_out <= {col_buf_in[63:4], col_in};
-            row_buf_out <= {row_buf_in[63:4], row_in};
-            col_ctrl_buf_out <= {col_ctrl_buf_in[15:1], col_ctrl_in};
-            row_ctrl_buf_out <= {row_ctrl_buf_in[15:1], row_ctrl_in};
+            if (count == 15) begin
+                col_buf_out <= {col_buf_in[63:4], col_in};
+                row_buf_out <= {row_buf_in[63:4], row_in};
+                col_ctrl_buf_out <= {col_ctrl_buf_in[15:1], col_ctrl_in};
+                row_ctrl_buf_out <= {row_ctrl_buf_in[15:1], row_ctrl_in};
+            end
         end
     end
 
