@@ -816,6 +816,23 @@ module tt_um_machinaut_systolic (
         end
     end
 
+
+    // Write to output on falling edge of clock
+    generate
+        for (i = 0; i < 15; i++) begin
+            always @(negedge clk) begin
+                if (rst_n) begin
+                    if (count == i) begin
+                        col_out <= col_buf_out[i];
+                        col_ctrl_out <= col_ctrl_buf_out[15-i];
+                        row_out <= row_buf_out[i];
+                        row_ctrl_out <= row_ctrl_buf_out[15-i]; 
+                    end
+                end
+            end
+        end
+    endgenerate
+
     // Write to output on falling edge of clock
     always @(negedge clk) begin
         if (!rst_n) begin  // Zero all regs if we're in reset
@@ -823,25 +840,25 @@ module tt_um_machinaut_systolic (
             col_ctrl_out <= 0;
             row_out <= 0;
             row_ctrl_out <= 0;
-        end else begin // Write from output buffers to output lines
-            case (count)
-                'h0: begin col_out <= col_buf_out['h0]; col_ctrl_out <= col_ctrl_buf_out['hF]; row_out <= row_buf_out['h0]; row_ctrl_out <= row_ctrl_buf_out['hF]; end
-                'h1: begin col_out <= col_buf_out['h1]; col_ctrl_out <= col_ctrl_buf_out['hE]; row_out <= row_buf_out['h1]; row_ctrl_out <= row_ctrl_buf_out['hE]; end
-                'h2: begin col_out <= col_buf_out['h2]; col_ctrl_out <= col_ctrl_buf_out['hD]; row_out <= row_buf_out['h2]; row_ctrl_out <= row_ctrl_buf_out['hD]; end
-                'h3: begin col_out <= col_buf_out['h3]; col_ctrl_out <= col_ctrl_buf_out['hC]; row_out <= row_buf_out['h3]; row_ctrl_out <= row_ctrl_buf_out['hC]; end
-                'h4: begin col_out <= col_buf_out['h4]; col_ctrl_out <= col_ctrl_buf_out['hB]; row_out <= row_buf_out['h4]; row_ctrl_out <= row_ctrl_buf_out['hB]; end
-                'h5: begin col_out <= col_buf_out['h5]; col_ctrl_out <= col_ctrl_buf_out['hA]; row_out <= row_buf_out['h5]; row_ctrl_out <= row_ctrl_buf_out['hA]; end
-                'h6: begin col_out <= col_buf_out['h6]; col_ctrl_out <= col_ctrl_buf_out['h9]; row_out <= row_buf_out['h6]; row_ctrl_out <= row_ctrl_buf_out['h9]; end
-                'h7: begin col_out <= col_buf_out['h7]; col_ctrl_out <= col_ctrl_buf_out['h8]; row_out <= row_buf_out['h7]; row_ctrl_out <= row_ctrl_buf_out['h8]; end
-                'h8: begin col_out <= col_buf_out['h8]; col_ctrl_out <= col_ctrl_buf_out['h7]; row_out <= row_buf_out['h8]; row_ctrl_out <= row_ctrl_buf_out['h7]; end
-                'h9: begin col_out <= col_buf_out['h9]; col_ctrl_out <= col_ctrl_buf_out['h6]; row_out <= row_buf_out['h9]; row_ctrl_out <= row_ctrl_buf_out['h6]; end
-                'hA: begin col_out <= col_buf_out['hA]; col_ctrl_out <= col_ctrl_buf_out['h5]; row_out <= row_buf_out['hA]; row_ctrl_out <= row_ctrl_buf_out['h5]; end
-                'hB: begin col_out <= col_buf_out['hB]; col_ctrl_out <= col_ctrl_buf_out['h4]; row_out <= row_buf_out['hB]; row_ctrl_out <= row_ctrl_buf_out['h4]; end
-                'hC: begin col_out <= col_buf_out['hC]; col_ctrl_out <= col_ctrl_buf_out['h3]; row_out <= row_buf_out['hC]; row_ctrl_out <= row_ctrl_buf_out['h3]; end
-                'hD: begin col_out <= col_buf_out['hD]; col_ctrl_out <= col_ctrl_buf_out['h2]; row_out <= row_buf_out['hD]; row_ctrl_out <= row_ctrl_buf_out['h2]; end
-                'hE: begin col_out <= col_buf_out['hE]; col_ctrl_out <= col_ctrl_buf_out['h1]; row_out <= row_buf_out['hE]; row_ctrl_out <= row_ctrl_buf_out['h1]; end
-                'hF: begin col_out <= col_buf_out['hF]; col_ctrl_out <= col_ctrl_buf_out['h0]; row_out <= row_buf_out['hF]; row_ctrl_out <= row_ctrl_buf_out['h0]; end
-            endcase
+        // end else begin // Write from output buffers to output lines
+        //     case (count)
+        //         'h0: begin col_out <= col_buf_out['h0]; col_ctrl_out <= col_ctrl_buf_out['hF]; row_out <= row_buf_out['h0]; row_ctrl_out <= row_ctrl_buf_out['hF]; end
+        //         'h1: begin col_out <= col_buf_out['h1]; col_ctrl_out <= col_ctrl_buf_out['hE]; row_out <= row_buf_out['h1]; row_ctrl_out <= row_ctrl_buf_out['hE]; end
+        //         'h2: begin col_out <= col_buf_out['h2]; col_ctrl_out <= col_ctrl_buf_out['hD]; row_out <= row_buf_out['h2]; row_ctrl_out <= row_ctrl_buf_out['hD]; end
+        //         'h3: begin col_out <= col_buf_out['h3]; col_ctrl_out <= col_ctrl_buf_out['hC]; row_out <= row_buf_out['h3]; row_ctrl_out <= row_ctrl_buf_out['hC]; end
+        //         'h4: begin col_out <= col_buf_out['h4]; col_ctrl_out <= col_ctrl_buf_out['hB]; row_out <= row_buf_out['h4]; row_ctrl_out <= row_ctrl_buf_out['hB]; end
+        //         'h5: begin col_out <= col_buf_out['h5]; col_ctrl_out <= col_ctrl_buf_out['hA]; row_out <= row_buf_out['h5]; row_ctrl_out <= row_ctrl_buf_out['hA]; end
+        //         'h6: begin col_out <= col_buf_out['h6]; col_ctrl_out <= col_ctrl_buf_out['h9]; row_out <= row_buf_out['h6]; row_ctrl_out <= row_ctrl_buf_out['h9]; end
+        //         'h7: begin col_out <= col_buf_out['h7]; col_ctrl_out <= col_ctrl_buf_out['h8]; row_out <= row_buf_out['h7]; row_ctrl_out <= row_ctrl_buf_out['h8]; end
+        //         'h8: begin col_out <= col_buf_out['h8]; col_ctrl_out <= col_ctrl_buf_out['h7]; row_out <= row_buf_out['h8]; row_ctrl_out <= row_ctrl_buf_out['h7]; end
+        //         'h9: begin col_out <= col_buf_out['h9]; col_ctrl_out <= col_ctrl_buf_out['h6]; row_out <= row_buf_out['h9]; row_ctrl_out <= row_ctrl_buf_out['h6]; end
+        //         'hA: begin col_out <= col_buf_out['hA]; col_ctrl_out <= col_ctrl_buf_out['h5]; row_out <= row_buf_out['hA]; row_ctrl_out <= row_ctrl_buf_out['h5]; end
+        //         'hB: begin col_out <= col_buf_out['hB]; col_ctrl_out <= col_ctrl_buf_out['h4]; row_out <= row_buf_out['hB]; row_ctrl_out <= row_ctrl_buf_out['h4]; end
+        //         'hC: begin col_out <= col_buf_out['hC]; col_ctrl_out <= col_ctrl_buf_out['h3]; row_out <= row_buf_out['hC]; row_ctrl_out <= row_ctrl_buf_out['h3]; end
+        //         'hD: begin col_out <= col_buf_out['hD]; col_ctrl_out <= col_ctrl_buf_out['h2]; row_out <= row_buf_out['hD]; row_ctrl_out <= row_ctrl_buf_out['h2]; end
+        //         'hE: begin col_out <= col_buf_out['hE]; col_ctrl_out <= col_ctrl_buf_out['h1]; row_out <= row_buf_out['hE]; row_ctrl_out <= row_ctrl_buf_out['h1]; end
+        //         'hF: begin col_out <= col_buf_out['hF]; col_ctrl_out <= col_ctrl_buf_out['h0]; row_out <= row_buf_out['hF]; row_ctrl_out <= row_ctrl_buf_out['h0]; end
+        //     endcase
         end
     end
 
