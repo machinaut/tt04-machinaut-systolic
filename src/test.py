@@ -14,41 +14,41 @@ def random_sequence(seed, N=10):
     assert isinstance(seed, int), f"seed={repr(seed)} must be int"
     rs = random.Random(seed)
     return {
-        'cols': [rs.randint(0, 2**64-1) for _ in range(N)],
-        'rows': [rs.randint(0, 2**64-1) for _ in range(N)],
-        'col_ctrls': [rs.randint(0, 2**16-1) for _ in range(N)],
-        'row_ctrls': [rs.randint(0, 2**16-1) for _ in range(N)],
+        'cols': [rs.randint(0, 2**16-1) for _ in range(N)],
+        'rows': [rs.randint(0, 2**16-1) for _ in range(N)],
+        'col_ctrls': [rs.randint(0, 2**4-1) for _ in range(N)],
+        'row_ctrls': [rs.randint(0, 2**4-1) for _ in range(N)],
     }
 
 
 async def check_block(dut, col_in, row_in, col_ctrl_in, row_ctrl_in, col_out=None, row_out=None, col_ctrl_out=None, row_ctrl_out=None):
-    assert isinstance(col_in, int) and 0 <= col_in < (2**64), f"col_in={col_in}"
-    assert isinstance(row_in, int) and 0 <= row_in < (2**64), f"row_in={row_in}"
-    assert isinstance(col_ctrl_in, int) and 0 <= col_ctrl_in < (2**16), f"col_ctrl_in={col_ctrl_in}"
-    assert isinstance(row_ctrl_in, int) and 0 <= row_ctrl_in < (2**16), f"row_ctrl_in={row_ctrl_in}"
+    assert isinstance(col_in, int) and 0 <= col_in < (2**16), f"col_in={col_in}"
+    assert isinstance(row_in, int) and 0 <= row_in < (2**16), f"row_in={row_in}"
+    assert isinstance(col_ctrl_in, int) and 0 <= col_ctrl_in < (2**4), f"col_ctrl_in={col_ctrl_in}"
+    assert isinstance(row_ctrl_in, int) and 0 <= row_ctrl_in < (2**4), f"row_ctrl_in={row_ctrl_in}"
     check_out = col_out is not None
 
     if check_out:
-        assert isinstance(col_out, int) and 0 <= col_out < (2**64), f"col_out={col_out}"
-        assert isinstance(row_out, int) and 0 <= row_out < (2**64), f"row_out={row_out}"
-        assert isinstance(col_ctrl_out, int) and 0 <= col_ctrl_out < (2**16), f"col_ctrl_out={col_ctrl_out}"
-        assert isinstance(row_ctrl_out, int) and 0 <= row_ctrl_out < (2**16), f"row_ctrl_out={row_ctrl_out}"
+        assert isinstance(col_out, int) and 0 <= col_out < (2**16), f"col_out={col_out}"
+        assert isinstance(row_out, int) and 0 <= row_out < (2**16), f"row_out={row_out}"
+        assert isinstance(col_ctrl_out, int) and 0 <= col_ctrl_out < (2**4), f"col_ctrl_out={col_ctrl_out}"
+        assert isinstance(row_ctrl_out, int) and 0 <= row_ctrl_out < (2**4), f"row_ctrl_out={row_ctrl_out}"
     else:
         assert col_out is None, f"col_out={col_out}"
         assert row_out is None, f"row_out={row_out}"
         assert col_ctrl_out is None, f"col_ctrl_out={col_ctrl_out}"
         assert row_ctrl_out is None, f"row_ctrl_out={row_ctrl_out}"
 
-    col_in_h = f"{col_in:016x}"
-    row_in_h = f"{row_in:016x}"
-    col_ctrl_in_b = f"{col_ctrl_in:016b}"
-    row_ctrl_in_b = f"{row_ctrl_in:016b}"
+    col_in_h = f"{col_in:04x}"
+    row_in_h = f"{row_in:04x}"
+    col_ctrl_in_b = f"{col_ctrl_in:04b}"
+    row_ctrl_in_b = f"{row_ctrl_in:04b}"
     if check_out:
-        col_out_h = f"{col_out:016x}"
-        row_out_h = f"{row_out:016x}"
-        col_ctrl_out_b = f"{col_ctrl_out:016b}"
-        row_ctrl_out_b = f"{row_ctrl_out:016b}"
-    for i in range(16):
+        col_out_h = f"{col_out:04x}"
+        row_out_h = f"{row_out:04x}"
+        col_ctrl_out_b = f"{col_ctrl_out:04b}"
+        row_ctrl_out_b = f"{row_ctrl_out:04b}"
+    for i in range(4):
         await Timer(3, units="us")
         ui_in = int(col_in_h[i] + row_in_h[i], 16)
         dut.ui_in.value = ui_in
@@ -56,9 +56,9 @@ async def check_block(dut, col_in, row_in, col_ctrl_in, row_ctrl_in, col_out=Non
         dut.uio_in.value = uio_in
         if check_out:
             uo_out = int(col_out_h[i] + row_out_h[i], 16)
-            assert dut.uo_out.value == uo_out, f"i={i}, dut.uo_out={dut.uo_out.value:016x} != {uo_out:016x}"
+            assert dut.uo_out.value == uo_out, f"i={i}, dut.uo_out={dut.uo_out.value:04x} != {uo_out:04x}"
             uio_out = int(col_ctrl_out_b[i] + row_ctrl_out_b[i], 2)
-            assert dut.uio_out.value == uio_out, f"i={i}, dut.uio_out={dut.uio_out.value:016b} != {uio_out:016b}"
+            assert dut.uio_out.value == uio_out, f"i={i}, dut.uio_out={dut.uio_out.value:04b} != {uio_out:04b}"
         await ClockCycles(dut.clk, 1, rising=False)
 
 
@@ -106,20 +106,20 @@ async def test_block(dut):
     # Start with a reset
     await reset(dut)
     # Go through one blocks
-    col_ctl = bin(0xcafe)[2:]
-    row_ctl = bin(0xbabe)[2:]
-    for i in range(16):
+    col_ctl = bin(0xc)[2:]
+    row_ctl = bin(0xb)[2:]
+    for i in range(4):
         await Timer(3, units="us")
         dut.ui_in.value = (0x0f - i + (i << 4)) % 256
         dut.uio_in.value = int(col_ctl[i] + row_ctl[i] + '00', 2)
         await ClockCycles(dut.clk, 1, rising=False)
     # Go through second block
-    for i in range(16):
+    for i in range(4):
         await Timer(3, units="us")
         dut.ui_in.value = (0x34 + i + (i << 4)) % 256
         await ClockCycles(dut.clk, 1, rising=False)
     # Go through third block
-    for i in range(16):
+    for i in range(4):
         await Timer(3, units="us")
         dut.ui_in.value = (0x56 + i + (i << 4)) % 256
         await ClockCycles(dut.clk, 1, rising=False)
@@ -137,6 +137,10 @@ async def test_check_random_sequence(dut):
     # Start with a reset
     await reset(dut)
     # Block sequence
+    await check_random_sequence(dut, seed=0)
+    # Reset again
+    await reset(dut)
+    # Block sequence again
     await check_random_sequence(dut, seed=0)
     # Reset again
     await reset(dut)
