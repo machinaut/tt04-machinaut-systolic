@@ -79,16 +79,21 @@ module tt_um_machinaut_systolic (
 
     // Read from input buffers
     generate
-        for (i = 0; i < 15; i++) begin
+        always @(posedge clk) begin
+            if (!rst_n) begin  // Zero all regs if we're in reset
+                row_ctrl_buf_in <= 0;
+            end
+        end
+        for (i = 0; i < 16; i++) begin
             always @(posedge clk) begin
                 if (!rst_n) begin  // Zero all regs if we're in reset
                     pipe_state[i] <= 0;  // TODO: separate generate block for reset
                 end else begin
                     if (count == i) begin
-                        col_buf_in[63-4*i:60-4*i] <= col_in;
-                        col_ctrl_buf_in[15 - i] <= col_ctrl_in;
-                        row_buf_in[63-4*i:60-4*i] <= row_in;
-                        row_ctrl_buf_in[15 - i] <= row_ctrl_in;
+                        col_buf_in[63-4*i:60-4*i] <= (count != 15) ? col_in : 0;
+                        col_ctrl_buf_in[15 - i] <= (count != 15) ? col_ctrl_in : 0;
+                        row_buf_in[63-4*i:60-4*i] <= (count != 15) ? row_in : 0;
+                        row_ctrl_buf_in[15 - i] <= (count != 15) ? row_ctrl_in : 0;
                     end
                 end
             end
@@ -101,7 +106,6 @@ module tt_um_machinaut_systolic (
             col_buf_in <= 0;
             col_ctrl_buf_in <= 0;
             row_buf_in <= 0;
-            row_ctrl_buf_in <= 0;
             col_buf_out <= 0;
             col_ctrl_buf_out <= 0;
             row_buf_out <= 0;
@@ -139,10 +143,6 @@ module tt_um_machinaut_systolic (
                 // 'hE: begin col_buf_in['hE] <= col_in; col_ctrl_buf_in['h1] <= col_ctrl_in; row_buf_in['hE] <= row_in; row_ctrl_buf_in['h1] <= row_ctrl_in; end
                 'hF: begin
                     // Clear buffers
-                    col_buf_in <= 0;
-                    col_ctrl_buf_in <= 0;
-                    row_buf_in <= 0;
-                    row_ctrl_buf_in <= 0;
                     // Need to be careful using the control signals, since the final bit is technically not in the buffer
                     // So effectively the column control value is {col_ctrl_buf_in[0:14], col_ctrl_in}
                     // And the row control value is {row_ctrl_buf_in[0:14], row_ctrl_in}
