@@ -121,10 +121,10 @@ module tt_um_machinaut_systolic (
     // Read and handle input on rising edge of clock
     always @(posedge clk) begin
         if (!rst_n) begin  // Zero all regs if we're in reset
-            col_buf_out <= 0;
-            col_ctrl_buf_out <= 0;
-            row_buf_out <= 0;
-            row_ctrl_buf_out <= 0;
+            // col_buf_out <= 0;
+            // col_ctrl_buf_out <= 0;
+            // row_buf_out <= 0;
+            // row_ctrl_buf_out <= 0;
             A <= 0;
             B <= 0;
             C <= 0;
@@ -822,14 +822,29 @@ module tt_um_machinaut_systolic (
                         //     default: begin row_buf_out <= {row_buf_in[0:14], row_in}; end
                         // endcase
                     // This will be removed, for now passthrough
-                    col_buf_out <= {col_buf_in[63:4], col_in};
-                    row_buf_out <= {row_buf_in[63:4], row_in};
-                    col_ctrl_buf_out <= {col_ctrl_buf_in[15:1], col_ctrl_in};
-                    row_ctrl_buf_out <= {row_ctrl_buf_in[15:1], row_ctrl_in};
+                    // col_buf_out <= {col_buf_in[63:4], col_in};
+                    // row_buf_out <= {row_buf_in[63:4], row_in};
+                    // col_ctrl_buf_out <= {col_ctrl_buf_in[15:1], col_ctrl_in};
+                    // row_ctrl_buf_out <= {row_ctrl_buf_in[15:1], row_ctrl_in};
                 end
             endcase
         end
     end
+
+    always @(posedge clk) begin
+        if (!rst_n) begin
+            col_buf_out <= 0;
+            row_buf_out <= 0;
+            col_ctrl_buf_out <= 0;
+            row_ctrl_buf_out <= 0;
+        end else begin
+            col_buf_out <= {col_buf_in[63:4], col_in};
+            row_buf_out <= {row_buf_in[63:4], row_in};
+            col_ctrl_buf_out <= {col_ctrl_buf_in[15:1], col_ctrl_in};
+            row_ctrl_buf_out <= {row_ctrl_buf_in[15:1], row_ctrl_in};
+        end
+    end
+
 
 
     // Write to output on falling edge of clock
