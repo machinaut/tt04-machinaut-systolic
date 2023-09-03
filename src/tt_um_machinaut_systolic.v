@@ -35,11 +35,15 @@ module tt_um_machinaut_systolic (
 
     // Genvars
     genvar i;
+    genvar j;
 
     // State
     wire boundary;
     reg [1:0] count; // Counts to block size
     assign boundary = (count == 3);
+
+    // Accumulator
+    reg [15:0] C [0:3];
 
     // Systolic Data and Control
     // Each has wires connected to external input/outputs, a buffer, and a concatenated full value
@@ -118,6 +122,23 @@ module tt_um_machinaut_systolic (
             count <= count + 1;
         end
     end
+
+    // Accumulator
+    generate
+        for (i = 0; i < 2; i++) begin
+            for (j = 0; j < 2; j++) begin
+                always @(posedge clk) begin
+                    if (!rst_n) begin  // Zero all regs if we're in reset
+                        C[i * 2 + j] <= 0;
+                    end else begin
+                        if (boundary) begin
+                            C[i * 2 + j] <= C[i * 2 + j] ^ {col_in_full[15-8*j:8-8*j], row_in_full[15-8*i:8-8*i]};
+                        end
+                    end
+                end
+            end
+        end
+    endgenerate
 
     // Output storage buffers, written at posedge clk and read at negedge clk
     always @(posedge clk) begin
