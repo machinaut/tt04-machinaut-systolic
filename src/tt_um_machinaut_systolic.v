@@ -20,7 +20,8 @@ module tt_um_machinaut_systolic (
     assign uio_out[7:2] = 6'b000000;  // Unused outputs
 
     // Systolic Data and Control
-    reg [0:15][3:0] col_buf_in;   // Column Input Buffer
+    // reg [0:15][3:0] col_buf_in;   // Column Input Buffer
+    reg [63:0] col_buf_in;   // Column Input Buffer
     reg [15:0] col_ctrl_buf_in;   // Column Control Input Buffer
     reg [0:15][3:0] row_buf_in;   // Row Input Buffer
     reg [15:0] row_ctrl_buf_in;   // Row Control Input Buffer
@@ -86,6 +87,25 @@ module tt_um_machinaut_systolic (
     reg [0:7][63:0] pipe_state14;
     reg [0:7][63:0] pipe_state15;
 
+    // Genvars
+    genvar i;
+
+    // Read from input buffers
+    generate
+        for (i = 0; i < 15; i++) begin
+            always @(posedge clk) begin
+                if (rst_n) begin  // Zero all regs if we're in reset
+                    if (count == i) begin
+                        col_buf_in[63-4*i:60-4*i] <= col_in;
+                        col_ctrl_buf_in[15 - i] <= col_ctrl_in;
+                        row_buf_in[i] <= row_in;
+                        row_ctrl_buf_in[15 - i] <= row_ctrl_in;
+                    end
+                end
+            end
+        end
+    endgenerate
+
     // Read and handle input on rising edge of clock
     always @(posedge clk) begin
         if (!rst_n) begin  // Zero all regs if we're in reset
@@ -128,23 +148,34 @@ module tt_um_machinaut_systolic (
             count <= count + 1; // Count up to block size
             if (continuous) pipe_count <= pipe_count + 1; // Advance Pipeline Counter
 
-            // Read from input buffers
+
+        // genvar k; 
+        // generate  
+        //    for (k = 0; k < 64; k++) begin
+        //     assign init[k] = k;
+        //            always@(posedge clk) begin
+        //                    if (reset) begin
+        //                            ucode[k] <= init[k];
+        //                    end
+        //            end
+        //    end
+        // endgenerate
             case (count)
-                'h0: begin col_buf_in['h0] <= col_in; col_ctrl_buf_in['hF] <= col_ctrl_in; row_buf_in['h0] <= row_in; row_ctrl_buf_in['hF] <= row_ctrl_in; end
-                'h1: begin col_buf_in['h1] <= col_in; col_ctrl_buf_in['hE] <= col_ctrl_in; row_buf_in['h1] <= row_in; row_ctrl_buf_in['hE] <= row_ctrl_in; end
-                'h2: begin col_buf_in['h2] <= col_in; col_ctrl_buf_in['hD] <= col_ctrl_in; row_buf_in['h2] <= row_in; row_ctrl_buf_in['hD] <= row_ctrl_in; end
-                'h3: begin col_buf_in['h3] <= col_in; col_ctrl_buf_in['hC] <= col_ctrl_in; row_buf_in['h3] <= row_in; row_ctrl_buf_in['hC] <= row_ctrl_in; end
-                'h4: begin col_buf_in['h4] <= col_in; col_ctrl_buf_in['hB] <= col_ctrl_in; row_buf_in['h4] <= row_in; row_ctrl_buf_in['hB] <= row_ctrl_in; end
-                'h5: begin col_buf_in['h5] <= col_in; col_ctrl_buf_in['hA] <= col_ctrl_in; row_buf_in['h5] <= row_in; row_ctrl_buf_in['hA] <= row_ctrl_in; end
-                'h6: begin col_buf_in['h6] <= col_in; col_ctrl_buf_in['h9] <= col_ctrl_in; row_buf_in['h6] <= row_in; row_ctrl_buf_in['h9] <= row_ctrl_in; end
-                'h7: begin col_buf_in['h7] <= col_in; col_ctrl_buf_in['h8] <= col_ctrl_in; row_buf_in['h7] <= row_in; row_ctrl_buf_in['h8] <= row_ctrl_in; end
-                'h8: begin col_buf_in['h8] <= col_in; col_ctrl_buf_in['h7] <= col_ctrl_in; row_buf_in['h8] <= row_in; row_ctrl_buf_in['h7] <= row_ctrl_in; end
-                'h9: begin col_buf_in['h9] <= col_in; col_ctrl_buf_in['h6] <= col_ctrl_in; row_buf_in['h9] <= row_in; row_ctrl_buf_in['h6] <= row_ctrl_in; end
-                'hA: begin col_buf_in['hA] <= col_in; col_ctrl_buf_in['h5] <= col_ctrl_in; row_buf_in['hA] <= row_in; row_ctrl_buf_in['h5] <= row_ctrl_in; end
-                'hB: begin col_buf_in['hB] <= col_in; col_ctrl_buf_in['h4] <= col_ctrl_in; row_buf_in['hB] <= row_in; row_ctrl_buf_in['h4] <= row_ctrl_in; end
-                'hC: begin col_buf_in['hC] <= col_in; col_ctrl_buf_in['h3] <= col_ctrl_in; row_buf_in['hC] <= row_in; row_ctrl_buf_in['h3] <= row_ctrl_in; end
-                'hD: begin col_buf_in['hD] <= col_in; col_ctrl_buf_in['h2] <= col_ctrl_in; row_buf_in['hD] <= row_in; row_ctrl_buf_in['h2] <= row_ctrl_in; end
-                'hE: begin col_buf_in['hE] <= col_in; col_ctrl_buf_in['h1] <= col_ctrl_in; row_buf_in['hE] <= row_in; row_ctrl_buf_in['h1] <= row_ctrl_in; end
+                // 'h0: begin col_buf_in[63-4*i:60-4*i] <= col_in; col_ctrl_buf_in['hF] <= col_ctrl_in; row_buf_in['h0] <= row_in; row_ctrl_buf_in['hF] <= row_ctrl_in; end
+                // 'h1: begin col_buf_in['h1] <= col_in; col_ctrl_buf_in['hE] <= col_ctrl_in; row_buf_in['h1] <= row_in; row_ctrl_buf_in['hE] <= row_ctrl_in; end
+                // 'h2: begin col_buf_in['h2] <= col_in; col_ctrl_buf_in['hD] <= col_ctrl_in; row_buf_in['h2] <= row_in; row_ctrl_buf_in['hD] <= row_ctrl_in; end
+                // 'h3: begin col_buf_in['h3] <= col_in; col_ctrl_buf_in['hC] <= col_ctrl_in; row_buf_in['h3] <= row_in; row_ctrl_buf_in['hC] <= row_ctrl_in; end
+                // 'h4: begin col_buf_in['h4] <= col_in; col_ctrl_buf_in['hB] <= col_ctrl_in; row_buf_in['h4] <= row_in; row_ctrl_buf_in['hB] <= row_ctrl_in; end
+                // 'h5: begin col_buf_in['h5] <= col_in; col_ctrl_buf_in['hA] <= col_ctrl_in; row_buf_in['h5] <= row_in; row_ctrl_buf_in['hA] <= row_ctrl_in; end
+                // 'h6: begin col_buf_in['h6] <= col_in; col_ctrl_buf_in['h9] <= col_ctrl_in; row_buf_in['h6] <= row_in; row_ctrl_buf_in['h9] <= row_ctrl_in; end
+                // 'h7: begin col_buf_in['h7] <= col_in; col_ctrl_buf_in['h8] <= col_ctrl_in; row_buf_in['h7] <= row_in; row_ctrl_buf_in['h8] <= row_ctrl_in; end
+                // 'h8: begin col_buf_in['h8] <= col_in; col_ctrl_buf_in['h7] <= col_ctrl_in; row_buf_in['h8] <= row_in; row_ctrl_buf_in['h7] <= row_ctrl_in; end
+                // 'h9: begin col_buf_in['h9] <= col_in; col_ctrl_buf_in['h6] <= col_ctrl_in; row_buf_in['h9] <= row_in; row_ctrl_buf_in['h6] <= row_ctrl_in; end
+                // 'hA: begin col_buf_in['hA] <= col_in; col_ctrl_buf_in['h5] <= col_ctrl_in; row_buf_in['hA] <= row_in; row_ctrl_buf_in['h5] <= row_ctrl_in; end
+                // 'hB: begin col_buf_in['hB] <= col_in; col_ctrl_buf_in['h4] <= col_ctrl_in; row_buf_in['hB] <= row_in; row_ctrl_buf_in['h4] <= row_ctrl_in; end
+                // 'hC: begin col_buf_in['hC] <= col_in; col_ctrl_buf_in['h3] <= col_ctrl_in; row_buf_in['hC] <= row_in; row_ctrl_buf_in['h3] <= row_ctrl_in; end
+                // 'hD: begin col_buf_in['hD] <= col_in; col_ctrl_buf_in['h2] <= col_ctrl_in; row_buf_in['hD] <= row_in; row_ctrl_buf_in['h2] <= row_ctrl_in; end
+                // 'hE: begin col_buf_in['hE] <= col_in; col_ctrl_buf_in['h1] <= col_ctrl_in; row_buf_in['hE] <= row_in; row_ctrl_buf_in['h1] <= row_ctrl_in; end
                 'hF: begin
                     // Clear buffers
                     col_buf_in <= 0;
@@ -182,12 +213,12 @@ module tt_um_machinaut_systolic (
 
                     // Silently drop shift-in if somehow both row and column are shifting into the same location
                     // Remember that becuase the last part of the data is still being input,
-                    //  the data is effectively {col_buf_in[0:14], col_in}
+                    //  the data is effectively {col_buf_in[63:4], col_in}
                     if (col_ctrl_buf_in[5] && ((!row_ctrl_buf_in[5]) || (col_ctrl_buf_in[15:8] != row_ctrl_buf_in[15:8]))) begin  // Shift in column data
                         // Switch on address
 
                         // wire [63:0] column_dest;
-                        // column_dest <= {col_buf_in[0:14], col_in};
+                        // column_dest <= {col_buf_in[63:4], col_in};
 
                         // mux col_dest_mux(.addr(col_ctrl_buf_in[15:8]),.out(column_dest));
 
@@ -195,155 +226,158 @@ module tt_um_machinaut_systolic (
 
                         case (col_ctrl_buf_in[15:8])
                             // 'h01: begin end  // TODO Internal State
-                            'h02: begin A <= {col_buf_in[0:14], col_in}; end
-                            'h04: begin B <= {col_buf_in[0:14], col_in}; end
-                            'h08: begin C[0:1] <= {col_buf_in[0:14], col_in}; end
-                            'h09: begin C[2:3] <= {col_buf_in[0:14], col_in}; end
-                            'h0A: begin C[4:5] <= {col_buf_in[0:14], col_in}; end
-                            'h0B: begin C[6:7] <= {col_buf_in[0:14], col_in}; end
-                            'h0C: begin C[8:9] <= {col_buf_in[0:14], col_in}; end
-                            'h0D: begin C[10:11] <= {col_buf_in[0:14], col_in}; end
-                            'h0E: begin C[12:13] <= {col_buf_in[0:14], col_in}; end
-                            'h0F: begin C[14:15] <= {col_buf_in[0:14], col_in}; end
-                            'h12: begin X <= {col_buf_in[0:14], col_in}; end
-                            'h14: begin Y <= {col_buf_in[0:14], col_in}; end
-                            'h18: begin Z[0:1] <= {col_buf_in[0:14], col_in}; end
-                            'h19: begin Z[2:3] <= {col_buf_in[0:14], col_in}; end
-                            'h1A: begin Z[4:5] <= {col_buf_in[0:14], col_in}; end
-                            'h1B: begin Z[6:7] <= {col_buf_in[0:14], col_in}; end
-                            'h1C: begin Z[8:9] <= {col_buf_in[0:14], col_in}; end
-                            'h1D: begin Z[10:11] <= {col_buf_in[0:14], col_in}; end
-                            'h1E: begin Z[12:13] <= {col_buf_in[0:14], col_in}; end
-                            'h1F: begin Z[14:15] <= {col_buf_in[0:14], col_in}; end
+                            // 'h02: begin A <= {col_buf_in[63:4], col_in}; end
+                            // 'h04: begin B <= {col_buf_in[63:4], col_in}; end
+                            // 'h08: begin C[0:1] <= {col_buf_in[63:4], col_in}; end
+                            'h02: begin A <= {col_buf_in[63:4], col_in}; end
+                            'h04: begin B <= {col_buf_in[63:4], col_in}; end
+                            'h08: begin C[0:1] <= {col_buf_in[63:4], col_in}; end
+                            'h09: begin C[2:3] <= {col_buf_in[63:4], col_in}; end
+                            'h0A: begin C[4:5] <= {col_buf_in[63:4], col_in}; end
+                            'h0B: begin C[6:7] <= {col_buf_in[63:4], col_in}; end
+                            'h0C: begin C[8:9] <= {col_buf_in[63:4], col_in}; end
+                            'h0D: begin C[10:11] <= {col_buf_in[63:4], col_in}; end
+                            'h0E: begin C[12:13] <= {col_buf_in[63:4], col_in}; end
+                            'h0F: begin C[14:15] <= {col_buf_in[63:4], col_in}; end
+                            'h12: begin X <= {col_buf_in[63:4], col_in}; end
+                            'h14: begin Y <= {col_buf_in[63:4], col_in}; end
+                            'h18: begin Z[0:1] <= {col_buf_in[63:4], col_in}; end
+                            'h19: begin Z[2:3] <= {col_buf_in[63:4], col_in}; end
+                            'h1A: begin Z[4:5] <= {col_buf_in[63:4], col_in}; end
+                            'h1B: begin Z[6:7] <= {col_buf_in[63:4], col_in}; end
+                            'h1C: begin Z[8:9] <= {col_buf_in[63:4], col_in}; end
+                            'h1D: begin Z[10:11] <= {col_buf_in[63:4], col_in}; end
+                            'h1E: begin Z[12:13] <= {col_buf_in[63:4], col_in}; end
+                            'h1F: begin Z[14:15] <= {col_buf_in[63:4], col_in}; end
                             // Pipeline states
-                            'h80: begin pipe_state0[0] <= {col_buf_in[0:14], col_in}; end
-                            'h81: begin pipe_state1[0] <= {col_buf_in[0:14], col_in}; end
-                            'h82: begin pipe_state2[0] <= {col_buf_in[0:14], col_in}; end
-                            'h83: begin pipe_state3[0] <= {col_buf_in[0:14], col_in}; end
-                            'h84: begin pipe_state4[0] <= {col_buf_in[0:14], col_in}; end
-                            'h85: begin pipe_state5[0] <= {col_buf_in[0:14], col_in}; end
-                            'h86: begin pipe_state6[0] <= {col_buf_in[0:14], col_in}; end
-                            'h87: begin pipe_state7[0] <= {col_buf_in[0:14], col_in}; end
-                            'h88: begin pipe_state8[0] <= {col_buf_in[0:14], col_in}; end
-                            'h89: begin pipe_state9[0] <= {col_buf_in[0:14], col_in}; end
-                            'h8A: begin pipe_state10[0] <= {col_buf_in[0:14], col_in}; end
-                            'h8B: begin pipe_state11[0] <= {col_buf_in[0:14], col_in}; end
-                            'h8C: begin pipe_state12[0] <= {col_buf_in[0:14], col_in}; end
-                            'h8D: begin pipe_state13[0] <= {col_buf_in[0:14], col_in}; end
-                            'h8E: begin pipe_state14[0] <= {col_buf_in[0:14], col_in}; end
-                            'h8F: begin pipe_state15[0] <= {col_buf_in[0:14], col_in}; end
-                            'h90: begin pipe_state0[1] <= {col_buf_in[0:14], col_in}; end
-                            'h91: begin pipe_state1[1] <= {col_buf_in[0:14], col_in}; end
-                            'h92: begin pipe_state2[1] <= {col_buf_in[0:14], col_in}; end
-                            'h93: begin pipe_state3[1] <= {col_buf_in[0:14], col_in}; end
-                            'h94: begin pipe_state4[1] <= {col_buf_in[0:14], col_in}; end
-                            'h95: begin pipe_state5[1] <= {col_buf_in[0:14], col_in}; end
-                            'h96: begin pipe_state6[1] <= {col_buf_in[0:14], col_in}; end
-                            'h97: begin pipe_state7[1] <= {col_buf_in[0:14], col_in}; end
-                            'h98: begin pipe_state8[1] <= {col_buf_in[0:14], col_in}; end
-                            'h99: begin pipe_state9[1] <= {col_buf_in[0:14], col_in}; end
-                            'h9A: begin pipe_state10[1] <= {col_buf_in[0:14], col_in}; end
-                            'h9B: begin pipe_state11[1] <= {col_buf_in[0:14], col_in}; end
-                            'h9C: begin pipe_state12[1] <= {col_buf_in[0:14], col_in}; end
-                            'h9D: begin pipe_state13[1] <= {col_buf_in[0:14], col_in}; end
-                            'h9E: begin pipe_state14[1] <= {col_buf_in[0:14], col_in}; end
-                            'h9F: begin pipe_state15[1] <= {col_buf_in[0:14], col_in}; end
-                            'hA0: begin pipe_state0[2] <= {col_buf_in[0:14], col_in}; end
-                            'hA1: begin pipe_state1[2] <= {col_buf_in[0:14], col_in}; end
-                            'hA2: begin pipe_state2[2] <= {col_buf_in[0:14], col_in}; end
-                            'hA3: begin pipe_state3[2] <= {col_buf_in[0:14], col_in}; end
-                            'hA4: begin pipe_state4[2] <= {col_buf_in[0:14], col_in}; end
-                            'hA5: begin pipe_state5[2] <= {col_buf_in[0:14], col_in}; end
-                            'hA6: begin pipe_state6[2] <= {col_buf_in[0:14], col_in}; end
-                            'hA7: begin pipe_state7[2] <= {col_buf_in[0:14], col_in}; end
-                            'hA8: begin pipe_state8[2] <= {col_buf_in[0:14], col_in}; end
-                            'hA9: begin pipe_state9[2] <= {col_buf_in[0:14], col_in}; end
-                            'hAA: begin pipe_state10[2] <= {col_buf_in[0:14], col_in}; end
-                            'hAB: begin pipe_state11[2] <= {col_buf_in[0:14], col_in}; end
-                            'hAC: begin pipe_state12[2] <= {col_buf_in[0:14], col_in}; end
-                            'hAD: begin pipe_state13[2] <= {col_buf_in[0:14], col_in}; end
-                            'hAE: begin pipe_state14[2] <= {col_buf_in[0:14], col_in}; end
-                            'hAF: begin pipe_state15[2] <= {col_buf_in[0:14], col_in}; end
-                            'hB0: begin pipe_state0[3] <= {col_buf_in[0:14], col_in}; end
-                            'hB1: begin pipe_state1[3] <= {col_buf_in[0:14], col_in}; end
-                            'hB2: begin pipe_state2[3] <= {col_buf_in[0:14], col_in}; end
-                            'hB3: begin pipe_state3[3] <= {col_buf_in[0:14], col_in}; end
-                            'hB4: begin pipe_state4[3] <= {col_buf_in[0:14], col_in}; end
-                            'hB5: begin pipe_state5[3] <= {col_buf_in[0:14], col_in}; end
-                            'hB6: begin pipe_state6[3] <= {col_buf_in[0:14], col_in}; end
-                            'hB7: begin pipe_state7[3] <= {col_buf_in[0:14], col_in}; end
-                            'hB8: begin pipe_state8[3] <= {col_buf_in[0:14], col_in}; end
-                            'hB9: begin pipe_state9[3] <= {col_buf_in[0:14], col_in}; end
-                            'hBA: begin pipe_state10[3] <= {col_buf_in[0:14], col_in}; end
-                            'hBB: begin pipe_state11[3] <= {col_buf_in[0:14], col_in}; end
-                            'hBC: begin pipe_state12[3] <= {col_buf_in[0:14], col_in}; end
-                            'hBD: begin pipe_state13[3] <= {col_buf_in[0:14], col_in}; end
-                            'hBE: begin pipe_state14[3] <= {col_buf_in[0:14], col_in}; end
-                            'hBF: begin pipe_state15[3] <= {col_buf_in[0:14], col_in}; end
-                            'hC0: begin pipe_state0[4] <= {col_buf_in[0:14], col_in}; end
-                            'hC1: begin pipe_state1[4] <= {col_buf_in[0:14], col_in}; end
-                            'hC2: begin pipe_state2[4] <= {col_buf_in[0:14], col_in}; end
-                            'hC3: begin pipe_state3[4] <= {col_buf_in[0:14], col_in}; end
-                            'hC4: begin pipe_state4[4] <= {col_buf_in[0:14], col_in}; end
-                            'hC5: begin pipe_state5[4] <= {col_buf_in[0:14], col_in}; end
-                            'hC6: begin pipe_state6[4] <= {col_buf_in[0:14], col_in}; end
-                            'hC7: begin pipe_state7[4] <= {col_buf_in[0:14], col_in}; end
-                            'hC8: begin pipe_state8[4] <= {col_buf_in[0:14], col_in}; end
-                            'hC9: begin pipe_state9[4] <= {col_buf_in[0:14], col_in}; end
-                            'hCA: begin pipe_state10[4] <= {col_buf_in[0:14], col_in}; end
-                            'hCB: begin pipe_state11[4] <= {col_buf_in[0:14], col_in}; end
-                            'hCC: begin pipe_state12[4] <= {col_buf_in[0:14], col_in}; end
-                            'hCD: begin pipe_state13[4] <= {col_buf_in[0:14], col_in}; end
-                            'hCE: begin pipe_state14[4] <= {col_buf_in[0:14], col_in}; end
-                            'hCF: begin pipe_state15[4] <= {col_buf_in[0:14], col_in}; end
-                            'hD0: begin pipe_state0[5] <= {col_buf_in[0:14], col_in}; end
-                            'hD1: begin pipe_state1[5] <= {col_buf_in[0:14], col_in}; end
-                            'hD2: begin pipe_state2[5] <= {col_buf_in[0:14], col_in}; end
-                            'hD3: begin pipe_state3[5] <= {col_buf_in[0:14], col_in}; end
-                            'hD4: begin pipe_state4[5] <= {col_buf_in[0:14], col_in}; end
-                            'hD5: begin pipe_state5[5] <= {col_buf_in[0:14], col_in}; end
-                            'hD6: begin pipe_state6[5] <= {col_buf_in[0:14], col_in}; end
-                            'hD7: begin pipe_state7[5] <= {col_buf_in[0:14], col_in}; end
-                            'hD8: begin pipe_state8[5] <= {col_buf_in[0:14], col_in}; end
-                            'hD9: begin pipe_state9[5] <= {col_buf_in[0:14], col_in}; end
-                            'hDA: begin pipe_state10[5] <= {col_buf_in[0:14], col_in}; end
-                            'hDB: begin pipe_state11[5] <= {col_buf_in[0:14], col_in}; end
-                            'hDC: begin pipe_state12[5] <= {col_buf_in[0:14], col_in}; end
-                            'hDD: begin pipe_state13[5] <= {col_buf_in[0:14], col_in}; end
-                            'hDE: begin pipe_state14[5] <= {col_buf_in[0:14], col_in}; end
-                            'hDF: begin pipe_state15[5] <= {col_buf_in[0:14], col_in}; end
-                            'hE0: begin pipe_state0[6] <= {col_buf_in[0:14], col_in}; end
-                            'hE1: begin pipe_state1[6] <= {col_buf_in[0:14], col_in}; end
-                            'hE2: begin pipe_state2[6] <= {col_buf_in[0:14], col_in}; end
-                            'hE3: begin pipe_state3[6] <= {col_buf_in[0:14], col_in}; end
-                            'hE4: begin pipe_state4[6] <= {col_buf_in[0:14], col_in}; end
-                            'hE5: begin pipe_state5[6] <= {col_buf_in[0:14], col_in}; end
-                            'hE6: begin pipe_state6[6] <= {col_buf_in[0:14], col_in}; end
-                            'hE7: begin pipe_state7[6] <= {col_buf_in[0:14], col_in}; end
-                            'hE8: begin pipe_state8[6] <= {col_buf_in[0:14], col_in}; end
-                            'hE9: begin pipe_state9[6] <= {col_buf_in[0:14], col_in}; end
-                            'hEA: begin pipe_state10[6] <= {col_buf_in[0:14], col_in}; end
-                            'hEB: begin pipe_state11[6] <= {col_buf_in[0:14], col_in}; end
-                            'hEC: begin pipe_state12[6] <= {col_buf_in[0:14], col_in}; end
-                            'hED: begin pipe_state13[6] <= {col_buf_in[0:14], col_in}; end
-                            'hEE: begin pipe_state14[6] <= {col_buf_in[0:14], col_in}; end
-                            'hEF: begin pipe_state15[6] <= {col_buf_in[0:14], col_in}; end
-                            'hF0: begin pipe_state0[7] <= {col_buf_in[0:14], col_in}; end
-                            'hF1: begin pipe_state1[7] <= {col_buf_in[0:14], col_in}; end
-                            'hF2: begin pipe_state2[7] <= {col_buf_in[0:14], col_in}; end
-                            'hF3: begin pipe_state3[7] <= {col_buf_in[0:14], col_in}; end
-                            'hF4: begin pipe_state4[7] <= {col_buf_in[0:14], col_in}; end
-                            'hF5: begin pipe_state5[7] <= {col_buf_in[0:14], col_in}; end
-                            'hF6: begin pipe_state6[7] <= {col_buf_in[0:14], col_in}; end
-                            'hF7: begin pipe_state7[7] <= {col_buf_in[0:14], col_in}; end
-                            'hF8: begin pipe_state8[7] <= {col_buf_in[0:14], col_in}; end
-                            'hF9: begin pipe_state9[7] <= {col_buf_in[0:14], col_in}; end
-                            'hFA: begin pipe_state10[7] <= {col_buf_in[0:14], col_in}; end
-                            'hFB: begin pipe_state11[7] <= {col_buf_in[0:14], col_in}; end
-                            'hFC: begin pipe_state12[7] <= {col_buf_in[0:14], col_in}; end
-                            'hFD: begin pipe_state13[7] <= {col_buf_in[0:14], col_in}; end
-                            'hFE: begin pipe_state14[7] <= {col_buf_in[0:14], col_in}; end
-                            'hFF: begin pipe_state15[7] <= {col_buf_in[0:14], col_in}; end
+                            'h80: begin pipe_state0[0] <= {col_buf_in[63:4], col_in}; end
+                            'h81: begin pipe_state1[0] <= {col_buf_in[63:4], col_in}; end
+                            'h82: begin pipe_state2[0] <= {col_buf_in[63:4], col_in}; end
+                            'h83: begin pipe_state3[0] <= {col_buf_in[63:4], col_in}; end
+                            'h84: begin pipe_state4[0] <= {col_buf_in[63:4], col_in}; end
+                            'h85: begin pipe_state5[0] <= {col_buf_in[63:4], col_in}; end
+                            'h86: begin pipe_state6[0] <= {col_buf_in[63:4], col_in}; end
+                            'h87: begin pipe_state7[0] <= {col_buf_in[63:4], col_in}; end
+                            'h88: begin pipe_state8[0] <= {col_buf_in[63:4], col_in}; end
+                            'h89: begin pipe_state9[0] <= {col_buf_in[63:4], col_in}; end
+                            'h8A: begin pipe_state10[0] <= {col_buf_in[63:4], col_in}; end
+                            'h8B: begin pipe_state11[0] <= {col_buf_in[63:4], col_in}; end
+                            'h8C: begin pipe_state12[0] <= {col_buf_in[63:4], col_in}; end
+                            'h8D: begin pipe_state13[0] <= {col_buf_in[63:4], col_in}; end
+                            'h8E: begin pipe_state14[0] <= {col_buf_in[63:4], col_in}; end
+                            'h8F: begin pipe_state15[0] <= {col_buf_in[63:4], col_in}; end
+                            'h90: begin pipe_state0[1] <= {col_buf_in[63:4], col_in}; end
+                            'h91: begin pipe_state1[1] <= {col_buf_in[63:4], col_in}; end
+                            'h92: begin pipe_state2[1] <= {col_buf_in[63:4], col_in}; end
+                            'h93: begin pipe_state3[1] <= {col_buf_in[63:4], col_in}; end
+                            'h94: begin pipe_state4[1] <= {col_buf_in[63:4], col_in}; end
+                            'h95: begin pipe_state5[1] <= {col_buf_in[63:4], col_in}; end
+                            'h96: begin pipe_state6[1] <= {col_buf_in[63:4], col_in}; end
+                            'h97: begin pipe_state7[1] <= {col_buf_in[63:4], col_in}; end
+                            'h98: begin pipe_state8[1] <= {col_buf_in[63:4], col_in}; end
+                            'h99: begin pipe_state9[1] <= {col_buf_in[63:4], col_in}; end
+                            'h9A: begin pipe_state10[1] <= {col_buf_in[63:4], col_in}; end
+                            'h9B: begin pipe_state11[1] <= {col_buf_in[63:4], col_in}; end
+                            'h9C: begin pipe_state12[1] <= {col_buf_in[63:4], col_in}; end
+                            'h9D: begin pipe_state13[1] <= {col_buf_in[63:4], col_in}; end
+                            'h9E: begin pipe_state14[1] <= {col_buf_in[63:4], col_in}; end
+                            'h9F: begin pipe_state15[1] <= {col_buf_in[63:4], col_in}; end
+                            'hA0: begin pipe_state0[2] <= {col_buf_in[63:4], col_in}; end
+                            'hA1: begin pipe_state1[2] <= {col_buf_in[63:4], col_in}; end
+                            'hA2: begin pipe_state2[2] <= {col_buf_in[63:4], col_in}; end
+                            'hA3: begin pipe_state3[2] <= {col_buf_in[63:4], col_in}; end
+                            'hA4: begin pipe_state4[2] <= {col_buf_in[63:4], col_in}; end
+                            'hA5: begin pipe_state5[2] <= {col_buf_in[63:4], col_in}; end
+                            'hA6: begin pipe_state6[2] <= {col_buf_in[63:4], col_in}; end
+                            'hA7: begin pipe_state7[2] <= {col_buf_in[63:4], col_in}; end
+                            'hA8: begin pipe_state8[2] <= {col_buf_in[63:4], col_in}; end
+                            'hA9: begin pipe_state9[2] <= {col_buf_in[63:4], col_in}; end
+                            'hAA: begin pipe_state10[2] <= {col_buf_in[63:4], col_in}; end
+                            'hAB: begin pipe_state11[2] <= {col_buf_in[63:4], col_in}; end
+                            'hAC: begin pipe_state12[2] <= {col_buf_in[63:4], col_in}; end
+                            'hAD: begin pipe_state13[2] <= {col_buf_in[63:4], col_in}; end
+                            'hAE: begin pipe_state14[2] <= {col_buf_in[63:4], col_in}; end
+                            'hAF: begin pipe_state15[2] <= {col_buf_in[63:4], col_in}; end
+                            'hB0: begin pipe_state0[3] <= {col_buf_in[63:4], col_in}; end
+                            'hB1: begin pipe_state1[3] <= {col_buf_in[63:4], col_in}; end
+                            'hB2: begin pipe_state2[3] <= {col_buf_in[63:4], col_in}; end
+                            'hB3: begin pipe_state3[3] <= {col_buf_in[63:4], col_in}; end
+                            'hB4: begin pipe_state4[3] <= {col_buf_in[63:4], col_in}; end
+                            'hB5: begin pipe_state5[3] <= {col_buf_in[63:4], col_in}; end
+                            'hB6: begin pipe_state6[3] <= {col_buf_in[63:4], col_in}; end
+                            'hB7: begin pipe_state7[3] <= {col_buf_in[63:4], col_in}; end
+                            'hB8: begin pipe_state8[3] <= {col_buf_in[63:4], col_in}; end
+                            'hB9: begin pipe_state9[3] <= {col_buf_in[63:4], col_in}; end
+                            'hBA: begin pipe_state10[3] <= {col_buf_in[63:4], col_in}; end
+                            'hBB: begin pipe_state11[3] <= {col_buf_in[63:4], col_in}; end
+                            'hBC: begin pipe_state12[3] <= {col_buf_in[63:4], col_in}; end
+                            'hBD: begin pipe_state13[3] <= {col_buf_in[63:4], col_in}; end
+                            'hBE: begin pipe_state14[3] <= {col_buf_in[63:4], col_in}; end
+                            'hBF: begin pipe_state15[3] <= {col_buf_in[63:4], col_in}; end
+                            'hC0: begin pipe_state0[4] <= {col_buf_in[63:4], col_in}; end
+                            'hC1: begin pipe_state1[4] <= {col_buf_in[63:4], col_in}; end
+                            'hC2: begin pipe_state2[4] <= {col_buf_in[63:4], col_in}; end
+                            'hC3: begin pipe_state3[4] <= {col_buf_in[63:4], col_in}; end
+                            'hC4: begin pipe_state4[4] <= {col_buf_in[63:4], col_in}; end
+                            'hC5: begin pipe_state5[4] <= {col_buf_in[63:4], col_in}; end
+                            'hC6: begin pipe_state6[4] <= {col_buf_in[63:4], col_in}; end
+                            'hC7: begin pipe_state7[4] <= {col_buf_in[63:4], col_in}; end
+                            'hC8: begin pipe_state8[4] <= {col_buf_in[63:4], col_in}; end
+                            'hC9: begin pipe_state9[4] <= {col_buf_in[63:4], col_in}; end
+                            'hCA: begin pipe_state10[4] <= {col_buf_in[63:4], col_in}; end
+                            'hCB: begin pipe_state11[4] <= {col_buf_in[63:4], col_in}; end
+                            'hCC: begin pipe_state12[4] <= {col_buf_in[63:4], col_in}; end
+                            'hCD: begin pipe_state13[4] <= {col_buf_in[63:4], col_in}; end
+                            'hCE: begin pipe_state14[4] <= {col_buf_in[63:4], col_in}; end
+                            'hCF: begin pipe_state15[4] <= {col_buf_in[63:4], col_in}; end
+                            'hD0: begin pipe_state0[5] <= {col_buf_in[63:4], col_in}; end
+                            'hD1: begin pipe_state1[5] <= {col_buf_in[63:4], col_in}; end
+                            'hD2: begin pipe_state2[5] <= {col_buf_in[63:4], col_in}; end
+                            'hD3: begin pipe_state3[5] <= {col_buf_in[63:4], col_in}; end
+                            'hD4: begin pipe_state4[5] <= {col_buf_in[63:4], col_in}; end
+                            'hD5: begin pipe_state5[5] <= {col_buf_in[63:4], col_in}; end
+                            'hD6: begin pipe_state6[5] <= {col_buf_in[63:4], col_in}; end
+                            'hD7: begin pipe_state7[5] <= {col_buf_in[63:4], col_in}; end
+                            'hD8: begin pipe_state8[5] <= {col_buf_in[63:4], col_in}; end
+                            'hD9: begin pipe_state9[5] <= {col_buf_in[63:4], col_in}; end
+                            'hDA: begin pipe_state10[5] <= {col_buf_in[63:4], col_in}; end
+                            'hDB: begin pipe_state11[5] <= {col_buf_in[63:4], col_in}; end
+                            'hDC: begin pipe_state12[5] <= {col_buf_in[63:4], col_in}; end
+                            'hDD: begin pipe_state13[5] <= {col_buf_in[63:4], col_in}; end
+                            'hDE: begin pipe_state14[5] <= {col_buf_in[63:4], col_in}; end
+                            'hDF: begin pipe_state15[5] <= {col_buf_in[63:4], col_in}; end
+                            'hE0: begin pipe_state0[6] <= {col_buf_in[63:4], col_in}; end
+                            'hE1: begin pipe_state1[6] <= {col_buf_in[63:4], col_in}; end
+                            'hE2: begin pipe_state2[6] <= {col_buf_in[63:4], col_in}; end
+                            'hE3: begin pipe_state3[6] <= {col_buf_in[63:4], col_in}; end
+                            'hE4: begin pipe_state4[6] <= {col_buf_in[63:4], col_in}; end
+                            'hE5: begin pipe_state5[6] <= {col_buf_in[63:4], col_in}; end
+                            'hE6: begin pipe_state6[6] <= {col_buf_in[63:4], col_in}; end
+                            'hE7: begin pipe_state7[6] <= {col_buf_in[63:4], col_in}; end
+                            'hE8: begin pipe_state8[6] <= {col_buf_in[63:4], col_in}; end
+                            'hE9: begin pipe_state9[6] <= {col_buf_in[63:4], col_in}; end
+                            'hEA: begin pipe_state10[6] <= {col_buf_in[63:4], col_in}; end
+                            'hEB: begin pipe_state11[6] <= {col_buf_in[63:4], col_in}; end
+                            'hEC: begin pipe_state12[6] <= {col_buf_in[63:4], col_in}; end
+                            'hED: begin pipe_state13[6] <= {col_buf_in[63:4], col_in}; end
+                            'hEE: begin pipe_state14[6] <= {col_buf_in[63:4], col_in}; end
+                            'hEF: begin pipe_state15[6] <= {col_buf_in[63:4], col_in}; end
+                            'hF0: begin pipe_state0[7] <= {col_buf_in[63:4], col_in}; end
+                            'hF1: begin pipe_state1[7] <= {col_buf_in[63:4], col_in}; end
+                            'hF2: begin pipe_state2[7] <= {col_buf_in[63:4], col_in}; end
+                            'hF3: begin pipe_state3[7] <= {col_buf_in[63:4], col_in}; end
+                            'hF4: begin pipe_state4[7] <= {col_buf_in[63:4], col_in}; end
+                            'hF5: begin pipe_state5[7] <= {col_buf_in[63:4], col_in}; end
+                            'hF6: begin pipe_state6[7] <= {col_buf_in[63:4], col_in}; end
+                            'hF7: begin pipe_state7[7] <= {col_buf_in[63:4], col_in}; end
+                            'hF8: begin pipe_state8[7] <= {col_buf_in[63:4], col_in}; end
+                            'hF9: begin pipe_state9[7] <= {col_buf_in[63:4], col_in}; end
+                            'hFA: begin pipe_state10[7] <= {col_buf_in[63:4], col_in}; end
+                            'hFB: begin pipe_state11[7] <= {col_buf_in[63:4], col_in}; end
+                            'hFC: begin pipe_state12[7] <= {col_buf_in[63:4], col_in}; end
+                            'hFD: begin pipe_state13[7] <= {col_buf_in[63:4], col_in}; end
+                            'hFE: begin pipe_state14[7] <= {col_buf_in[63:4], col_in}; end
+                            'hFF: begin pipe_state15[7] <= {col_buf_in[63:4], col_in}; end
                         endcase
                     end
                     // Exact same but for row
@@ -655,7 +689,7 @@ module tt_um_machinaut_systolic (
                             'hFD: begin col_buf_out <= pipe_state13[7]; end
                             'hFE: begin col_buf_out <= pipe_state14[7]; end
                             'hFF: begin col_buf_out <= pipe_state15[7]; end
-                            default: begin col_buf_out <= {col_buf_in[0:14], col_in}; end
+                            default: begin col_buf_out <= {col_buf_in[63:4], col_in}; end
                         endcase
                         // Switch on address
                         case (row_ctrl_buf_in[15:8])
