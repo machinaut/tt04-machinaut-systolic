@@ -185,6 +185,14 @@ module tt_um_machinaut_systolic (
                     //  the data is effectively {col_buf_in[0:14], col_in}
                     if (col_ctrl_buf_in[5] && ((!row_ctrl_buf_in[5]) || (col_ctrl_buf_in[15:8] != row_ctrl_buf_in[15:8]))) begin  // Shift in column data
                         // Switch on address
+
+                        // wire [63:0] column_dest;
+                        // column_dest <= {col_buf_in[0:14], col_in};
+
+                        // mux col_dest_mux(.addr(col_ctrl_buf_in[15:8]),.out(column_dest));
+
+
+
                         case (col_ctrl_buf_in[15:8])
                             // 'h01: begin end  // TODO Internal State
                             'h02: begin A <= {col_buf_in[0:14], col_in}; end
