@@ -124,8 +124,10 @@ async def test_block(dut):
         dut.ui_in.value = (0x56 + i + (i << 4)) % 256
         await ClockCycles(dut.clk, 1, rising=False)
 
-    # Reset again
+    # Settle
     await reset(dut)
+    await Timer(20, units="us")
+
 
 
 @cocotb.test()
@@ -142,5 +144,6 @@ async def test_check_random_sequence(dut):
     await reset(dut)
     # Block sequence again
     await check_random_sequence(dut, seed=0)
-    # Reset again
+    # Settle
     await reset(dut)
+    await Timer(20, units="us")

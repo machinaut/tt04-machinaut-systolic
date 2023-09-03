@@ -33,68 +33,61 @@ module tt_um_machinaut_systolic (
     assign uio_oe[7:4] = 4'b0000;  // Unused pins
     assign uio_out[7:2] = 6'b000000;  // Unused outputs
 
-    // Systolic Data and Control
-    // Each has wires connected to external input/outputs, a buffer, and a concatenated full value
-    
-    // Column Input
-    wire [3:0] col_in;
-    assign col_in = ui_in[7:4];
-    reg [11:0] col_buf_in;
-    wire [15:0] col_in_full;
-    assign col_in_full = {col_buf_in, col_in};
-
-    // Column Control Input
-    wire col_ctrl_in;
-    assign uio_oe[3] = 0;
-    assign col_ctrl_in = uio_in[3];
-    reg [2:0] col_ctrl_buf_in;
-    wire [3:0] col_ctrl_in_full;
-    assign col_ctrl_in_full = {col_ctrl_buf_in, col_ctrl_in};
-
-    // Row Input
-    wire [3:0] row_in;
-    assign row_in = ui_in[3:0];
-    reg [11:0] row_buf_in;
-    wire [15:0] row_in_full;
-    assign row_in_full = {row_buf_in, row_in};
-
-    // Row Control Input
-    wire row_ctrl_in;
-    assign uio_oe[2] = 0;
-    assign row_ctrl_in = uio_in[2];
-    reg [2:0] row_ctrl_buf_in;
-    wire [3:0] row_ctrl_in_full;
-    assign row_ctrl_in_full = {row_ctrl_buf_in, row_ctrl_in};
-
-    // Column Output
-    reg [3:0] col_out;
-    assign uo_out[7:4] = col_out;
-    reg [15:0] col_buf_out;
-
-    // Column Control Output
-    reg col_ctrl_out;
-    assign uio_oe[1] = 1;
-    assign uio_out[1] = col_ctrl_out;
-    reg [3:0] col_ctrl_buf_out;
-
-    // Row Output
-    reg [3:0] row_out;
-    assign uo_out[3:0] = row_out;
-    reg [15:0] row_buf_out;
-
-    // Row Control Output
-    reg row_ctrl_out;
-    assign uio_oe[0] = 1;
-    assign uio_out[0] = row_ctrl_out;
-    reg [3:0] row_ctrl_buf_out;
+    // Genvars
+    genvar i;
 
     // State
     wire boundary;
     reg [1:0] count; // Counts to block size
     assign boundary = (count == 3);
 
-    // Genvars
-    genvar i;
+    // Systolic Data and Control
+    // Each has wires connected to external input/outputs, a buffer, and a concatenated full value
+    // Column Input
+    wire [3:0] col_in;
+    assign col_in = ui_in[7:4];
+    reg [11:0] col_buf_in;
+    wire [15:0] col_in_full;
+    assign col_in_full = boundary ? {col_buf_in, col_in} : 0;
+    // Column Control Input
+    wire col_ctrl_in;
+    assign uio_oe[3] = 0;
+    assign col_ctrl_in = uio_in[3];
+    reg [2:0] col_ctrl_buf_in;
+    wire [3:0] col_ctrl_in_full;
+    assign col_ctrl_in_full = boundary ? {col_ctrl_buf_in, col_ctrl_in}: 0;
+    // Row Input
+    wire [3:0] row_in;
+    assign row_in = ui_in[3:0];
+    reg [11:0] row_buf_in;
+    wire [15:0] row_in_full;
+    assign row_in_full = boundary ? {row_buf_in, row_in} : 0;
+    // Row Control Input
+    wire row_ctrl_in;
+    assign uio_oe[2] = 0;
+    assign row_ctrl_in = uio_in[2];
+    reg [2:0] row_ctrl_buf_in;
+    wire [3:0] row_ctrl_in_full;
+    assign row_ctrl_in_full = boundary ? {row_ctrl_buf_in, row_ctrl_in} : 0;
+    // Column Output
+    reg [3:0] col_out;
+    assign uo_out[7:4] = col_out;
+    reg [15:0] col_buf_out;
+    // Column Control Output
+    reg col_ctrl_out;
+    assign uio_oe[1] = 1;
+    assign uio_out[1] = col_ctrl_out;
+    reg [3:0] col_ctrl_buf_out;
+    // Row Output
+    reg [3:0] row_out;
+    assign uo_out[3:0] = row_out;
+    reg [15:0] row_buf_out;
+    // Row Control Output
+    reg row_ctrl_out;
+    assign uio_oe[0] = 1;
+    assign uio_out[0] = row_ctrl_out;
+    reg [3:0] row_ctrl_buf_out;
+
 
     // Read from input buffers
     generate
