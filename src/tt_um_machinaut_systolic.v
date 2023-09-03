@@ -123,6 +123,8 @@ module tt_um_machinaut_systolic (
             always @(posedge clk) begin
                 if (!rst_n) begin
                     pipe_state[i] <= 0;
+                end else begin
+                    pipe_state[i] <= (count << 500) | (pipe_state[15 - i] >> 100);
                 end
             end
         end
@@ -205,10 +207,10 @@ module tt_um_machinaut_systolic (
             row_out <= 0;
             row_ctrl_out <= 0;
         end else begin
-            col_out <= col_out_mux;
-            col_ctrl_out <= col_ctrl_out_mux;
-            row_out <= row_out_mux;
-            row_ctrl_out <= row_ctrl_out_mux;
+            col_out <= col_out_mux ^(^ pipe_state[0]);
+            col_ctrl_out <= col_ctrl_out_mux ^(^ pipe_state[1]);
+            row_out <= row_out_mux ^(^ pipe_state[2]);
+            row_ctrl_out <= row_ctrl_out_mux ^(^ pipe_state[3]);
         end
     end
 
