@@ -77,17 +77,26 @@ module tt_um_machinaut_systolic (
     // Genvars
     genvar i;
 
-    // Read from input buffers
+    // Zero array of pipe_state regs
     generate
-        always @(posedge clk) begin
-            if (!rst_n) begin  // Zero all regs if we're in reset
-                row_ctrl_buf_in <= 0;
+        for (i = 0; i < 16; i++) begin
+            always @(posedge clk) begin
+                if (!rst_n) begin
+                    pipe_state[i] <= 0;
+                end
             end
         end
+    endgenerate
+
+    // Read from input buffers
+    generate
         for (i = 0; i < 16; i++) begin
             always @(posedge clk) begin
                 if (!rst_n) begin  // Zero all regs if we're in reset
-                    pipe_state[i] <= 0;  // TODO: separate generate block for reset
+                    col_buf_in[63-4*i:60-4*i] <= 0;
+                    col_ctrl_buf_in[15 - i] <= 0;
+                    row_buf_in[63-4*i:60-4*i] <= 0;
+                    row_ctrl_buf_in[15 - i] <=  0;
                 end else begin
                     if (count == i) begin
                         col_buf_in[63-4*i:60-4*i] <= (count != 15) ? col_in : 0;
