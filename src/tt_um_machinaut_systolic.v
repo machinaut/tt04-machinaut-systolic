@@ -1,5 +1,14 @@
 `default_nettype none
 
+// // 4-bit 16-to-1 mux
+// module mux4b16t1 (
+//     input  wire [15:0] in,  // 16 inputs
+//     input  wire [3:0]  addr,  // 4-bit address
+//     output wire [15:0] out  // 1 output
+// );
+//     assign out = in[addr];
+// endmodule
+
 module tt_um_machinaut_systolic (
     input  wire [7:0] ui_in,    // Dedicated inputs - connected to the input switches
     output wire [7:0] uo_out,   // Dedicated outputs - connected to the 7 segment display
@@ -112,9 +121,6 @@ module tt_um_machinaut_systolic (
     // Read and handle input on rising edge of clock
     always @(posedge clk) begin
         if (!rst_n) begin  // Zero all regs if we're in reset
-            col_buf_in <= 0;
-            col_ctrl_buf_in <= 0;
-            row_buf_in <= 0;
             col_buf_out <= 0;
             col_ctrl_buf_out <= 0;
             row_buf_out <= 0;
@@ -830,7 +836,13 @@ module tt_um_machinaut_systolic (
     generate
         for (i = 0; i < 15; i++) begin
             always @(negedge clk) begin
-                if (rst_n) begin
+                if (!rst_n) begin
+                    col_out <= 0;
+                    col_ctrl_out <= 0;
+                    row_out <= 0;
+                    row_ctrl_out <= 0;
+                end else begin
+                    // TODO build a fucking multiplexer and use that
                     if (count == i) begin
                         col_out <= col_buf_out[i];
                         col_ctrl_out <= col_ctrl_buf_out[15-i];
@@ -845,10 +857,10 @@ module tt_um_machinaut_systolic (
     // Write to output on falling edge of clock
     always @(negedge clk) begin
         if (!rst_n) begin  // Zero all regs if we're in reset
-            col_out <= 0;
-            col_ctrl_out <= 0;
-            row_out <= 0;
-            row_ctrl_out <= 0;
+            // col_out <= 0;
+            // col_ctrl_out <= 0;
+            // row_out <= 0;
+            // row_ctrl_out <= 0;
         // end else begin // Write from output buffers to output lines
         //     case (count)
         //         'h0: begin col_out <= col_buf_out['h0]; col_ctrl_out <= col_ctrl_buf_out['hF]; row_out <= row_buf_out['h0]; row_ctrl_out <= row_ctrl_buf_out['hF]; end
