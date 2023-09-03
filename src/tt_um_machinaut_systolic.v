@@ -124,7 +124,7 @@ module tt_um_machinaut_systolic (
                 if (!rst_n) begin
                     pipe_state[i] <= 0;
                 end else begin
-                    pipe_state[i] <= (count << 500) | (pipe_state[15 - i] >> 100);
+                    pipe_state[i] <= (count << 500) | (pipe_state[(i + 1) % 16] >> 100);
                 end
             end
         end
