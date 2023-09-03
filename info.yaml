@@ -10,8 +10,7 @@ project:
   top_module:  "tt_um_machinaut_systolic"      # put the name of your top module here, make it unique by prepending your github username
 
 # How many tiles your design occupies? A single tile is about 167x108 uM.
-# tiles: "1x1"    # Valid values: 1x1, 1x2, 2x2, 4x2 or 8x2
-  tiles: "8x2"    # Valid values: 1x1, 1x2, 2x2, 4x2 or 8x2
+  tiles: "1x1"    # Valid values: 1x1, 1x2, 2x2, 4x2 or 8x2
 
 # Keep a track of the submission yaml
 yaml_version: 4
@@ -22,9 +21,9 @@ yaml_version: 4
 # Here is a great example: https://github.com/davidsiaw/tt02-davidsiaw-stackcalc/blob/38c5647f83aad2aec675d566aa3d67b98f0aac81/info.yaml
 documentation: 
   author:       "machinaut"
-  title:        "Systolic"
+  title:        "AI Decelerator"
   language:     "Verilog"
-  description:  "Multiply add"
+  description:  "Systolic array for matrix multiplication"
 
 # Longer description of how the project works. You can use standard markdown format.
   how_it_works: |
@@ -36,38 +35,38 @@ documentation:
 
 # A description of what the inputs do (e.g. red button, SPI CLK, SPI MOSI, etc).
   inputs:               
-    - input bit 0
-    - input bit 1
-    - input bit 2
-    - input bit 3
-    - input bit 4
-    - input bit 5
-    - input bit 6
-    - input bit 7
+    - Row Data Input bit 0
+    - Row Data Input bit 1
+    - Row Data Input bit 2
+    - Row Data Input bit 3
+    - Col Data Input bit 0
+    - Col Data Input bit 1
+    - Col Data Input bit 2
+    - Col Data Input bit 3
 # A description of what the outputs do (e.g. status LED, SPI MISO, etc)
   outputs:
-    - output bit 0
-    - output bit 1
-    - output bit 2
-    - output bit 3
-    - output bit 4
-    - output bit 5
-    - output bit 6
-    - output bit 7
+    - Row Data Output bit 0
+    - Row Data Output bit 1
+    - Row Data Output bit 2
+    - Row Data Output bit 3
+    - Col Data Output bit 0
+    - Col Data Output bit 1
+    - Col Data Output bit 2
+    - Col Data Output bit 3
 # A description of what the bidirectional I/O pins do (e.g. I2C SDA, I2C SCL, etc)
   bidirectional:
-    - bidirectional bit 0
-    - bidirectional bit 1
-    - bidirectional bit 2
-    - bidirectional bit 3
-    - bidirectional bit 4
-    - bidirectional bit 5
-    - bidirectional bit 6
-    - bidirectional bit 7
+    - Row Control Output
+    - Col Control Output
+    - Row Control Input
+    - Col Control Input
+    - JTAG TDI (current unimplemented)
+    - JTAG TDO (current unimplemented)
+    - JTAG TCK (current unimplemented)
+    - JTAG TMS (current unimplemented)
 
 # The following fields are optional
 # TODO: Set tags appropriately
-  tag:          "timer, test"      # comma separated list of tags: test, encryption, experiment, clock, animation, utility, industrial, pwm, fpga, alu, microprocessor, risc, riscv, sensor, signal generator, fft, filter, music, bcd, sound, serial, timer, random number generator, calculator, decoder, counter, puzzle, multiplier, game, oscillator,
+  tag:          "multiplier"      # comma separated list of tags: test, encryption, experiment, clock, animation, utility, industrial, pwm, fpga, alu, microprocessor, risc, riscv, sensor, signal generator, fft, filter, music, bcd, sound, serial, timer, random number generator, calculator, decoder, counter, puzzle, multiplier, game, oscillator,
   external_hw:  ""      # Describe any external hardware needed
   discord:      ""      # Your discord handle, used for communication and automatically assigning tapeout role after a submission
   doc_link:     ""      # URL to longer form documentation, eg the README.md in your repository

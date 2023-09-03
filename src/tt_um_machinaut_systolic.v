@@ -73,10 +73,6 @@ module tt_um_machinaut_systolic (
     reg [63:0] A;  // 4-vector of BF16 values - read in column
     reg [63:0] B;  // 4-vector of BF16 values - read in row
     reg [511:0] C;  // 16-vector of FP32 values - accumulated
-    // Concat-Xor
-    reg [63:0] X;  // 4-vector of uint16 values - read in column
-    reg [63:0] Y;  // 4-vector of uint16 values - read in row
-    reg [511:0] Z;  // 16-vector of uint32 values - accumulated
 
     // State
     reg [3:0] count;       // Counts to block size (not part of state debug readout)
@@ -90,29 +86,18 @@ module tt_um_machinaut_systolic (
     // * 02 - A (Math Vector)
     // * 04 - B (Math Vector)
     // * 08-0F - C (Math Vector)
-    // * 12 - X (Math Vector)
-    // * 14 - Y (Math Vector)
-    // * 18-1F - Z (Math Vector)
-    // * 8* - Pipeline A (* is stage, 0-F)
-    // * 9* - Pipeline B
-    // * A* - Pipeline C
-    // * B* - Pipeline P
-    // * C* - Pipeline S
-    // * D* - Pipeline X
-    // * E* - Pipeline Y
-    // * F* - Pipeline Z
+    // * 1x - Pipeline Stage x
 
     // Pipeline Stage States   
     // Fused Multiply Add: C <= A * B + C
-    // Debug Concat Xor: Z <= X.Y ^ Z
-    // Vars are: A, B, C, P, S, X, Y, Z
+    // Debug Concat Xor: C <= A.B ^ C
     // Value bits:
     //    1 - sign bit
     //   11 - signed exponent
     //   28 - signed Q (2.23) with guard, round, sticky
     //    4 - flag bits (nan, inf, zero, sub)
     //   20 - unused
-    reg [511:0] pipe_state [0:15];
+    reg [63:0] pipe_state [0:15];
 
     // Genvars
     genvar i;
@@ -124,7 +109,15 @@ module tt_um_machinaut_systolic (
                 if (!rst_n) begin
                     pipe_state[i] <= 0;
                 end else begin
-                    pipe_state[i] <= (count << 500) | (pipe_state[(i + 1) % 16] >> 100);
+                    // write from column or row
+                    // xor now to cause synthesis
+                    if (count == 15) begin  // At end of block
+                        if (col_ctrl_buf_in[5]) begin  // If the shift-in bit is set
+                            if (col_ctrl_buf_in[15:8] == 'h10 + i) begin  // If the address matches
+                                pipe_state[i] <= pipe_state[i] ^ {col_buf_in[63:4], col_in};
+                            end
+                        end
+                    end
                 end
             end
         end
@@ -169,9 +162,6 @@ module tt_um_machinaut_systolic (
             A <= 0;
             B <= 0;
             C <= 0;
-            X <= 0;
-            Y <= 0;
-            Z <= 0;
             col_shift_done <= 0;
             row_shift_done <= 0;
         end 
@@ -207,10 +197,10 @@ module tt_um_machinaut_systolic (
             row_out <= 0;
             row_ctrl_out <= 0;
         end else begin
-            col_out <= col_out_mux ^(^ pipe_state[0]);
-            col_ctrl_out <= col_ctrl_out_mux ^(^ pipe_state[1]);
-            row_out <= row_out_mux ^(^ pipe_state[2]);
-            row_ctrl_out <= row_ctrl_out_mux ^(^ pipe_state[3]);
+            col_out <= col_out_mux;
+            col_ctrl_out <= col_ctrl_out_mux;
+            row_out <= row_out_mux;
+            row_ctrl_out <= row_ctrl_out_mux;
         end
     end
 
