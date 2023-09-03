@@ -48,27 +48,27 @@ module tt_um_machinaut_systolic (
     assign col_in = ui_in[7:4];
     reg [11:0] col_buf_in;
     wire [15:0] col_in_full;
-    assign col_in_full = boundary ? {col_buf_in, col_in} : 0;
+    assign col_in_full = {col_buf_in, col_in};
     // Column Control Input
     wire col_ctrl_in;
     assign uio_oe[3] = 0;
     assign col_ctrl_in = uio_in[3];
     reg [2:0] col_ctrl_buf_in;
     wire [3:0] col_ctrl_in_full;
-    assign col_ctrl_in_full = boundary ? {col_ctrl_buf_in, col_ctrl_in}: 0;
+    assign col_ctrl_in_full = {col_ctrl_buf_in, col_ctrl_in};
     // Row Input
     wire [3:0] row_in;
     assign row_in = ui_in[3:0];
     reg [11:0] row_buf_in;
     wire [15:0] row_in_full;
-    assign row_in_full = boundary ? {row_buf_in, row_in} : 0;
+    assign row_in_full = {row_buf_in, row_in};
     // Row Control Input
     wire row_ctrl_in;
     assign uio_oe[2] = 0;
     assign row_ctrl_in = uio_in[2];
     reg [2:0] row_ctrl_buf_in;
     wire [3:0] row_ctrl_in_full;
-    assign row_ctrl_in_full = boundary ? {row_ctrl_buf_in, row_ctrl_in} : 0;
+    assign row_ctrl_in_full = {row_ctrl_buf_in, row_ctrl_in};
     // Column Output
     reg [3:0] col_out;
     assign uo_out[7:4] = col_out;
