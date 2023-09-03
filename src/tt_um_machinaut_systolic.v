@@ -123,6 +123,43 @@ module tt_um_machinaut_systolic (
         end
     endgenerate
 
+    // Read and handle input on rising edge of clock
+    always @(posedge clk) begin
+        if (!rst_n) begin  // Zero all regs if we're in reset
+            A <= 0;
+            B <= 0;
+            C <= 0;
+        end else begin
+            // write from column or row
+            // xor now to cause synthesis
+            if (count == 15) begin  // At end of block
+                if (col_ctrl_buf_in[5]) begin  // If the shift-in bit is set
+                    if (col_ctrl_buf_in[15:8] == 'h02) begin
+                        A <= A ^ {col_buf_in[63:4], col_in};
+                    end else if (col_ctrl_buf_in[15:8] == 'h04) begin
+                        B <= B ^ {col_buf_in[63:4], col_in};
+                    end else if (col_ctrl_buf_in[15:8] == 'h08) begin
+                        C[511:448] <= C[511:448] ^ {col_buf_in[63:4], col_in};
+                    end else if (col_ctrl_buf_in[15:8] == 'h09) begin
+                        C[447:384] <= C[447:384] ^ {col_buf_in[63:4], col_in};
+                    end else if (col_ctrl_buf_in[15:8] == 'h0A) begin
+                        C[383:320] <= C[383:320] ^ {col_buf_in[63:4], col_in};
+                    end else if (col_ctrl_buf_in[15:8] == 'h0B) begin
+                        C[319:256] <= C[319:256] ^ {col_buf_in[63:4], col_in};
+                    end else if (col_ctrl_buf_in[15:8] == 'h0C) begin
+                        C[255:192] <= C[255:192] ^ {col_buf_in[63:4], col_in};
+                    end else if (col_ctrl_buf_in[15:8] == 'h0D) begin
+                        C[191:128] <= C[191:128] ^ {col_buf_in[63:4], col_in};
+                    end else if (col_ctrl_buf_in[15:8] == 'h0E) begin
+                        C[127:64] <= C[127:64] ^ {col_buf_in[63:4], col_in};
+                    end else if (col_ctrl_buf_in[15:8] == 'h0F) begin
+                        C[63:0] <= C[63:0] ^ {col_buf_in[63:4], col_in};
+                    end
+                end
+            end
+        end
+    end
+
     // Read from input buffers
     generate
         for (i = 0; i < 16; i++) begin
@@ -154,17 +191,6 @@ module tt_um_machinaut_systolic (
             count <= count + 1;
             if (continuous) pipe_count <= pipe_count + 1;
         end
-    end
-
-    // Read and handle input on rising edge of clock
-    always @(posedge clk) begin
-        if (!rst_n) begin  // Zero all regs if we're in reset
-            A <= 0;
-            B <= 0;
-            C <= 0;
-            col_shift_done <= 0;
-            row_shift_done <= 0;
-        end 
     end
 
     // Output storage buffers, written at posedge clk and read at negedge clk
