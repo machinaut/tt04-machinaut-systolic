@@ -26,21 +26,6 @@ endmodule
 // 2        C0      C1
 // 3        C2      C3
 
-// Column Out Address Mux
-module muxcoladr (
-    input wire [15:0] C0, input wire [15:0] C2,
-    input wire [15:0] in_buf, input wire [1:0] addr, output wire [15:0] out
-);
-    assign out = (addr == 2) ? C0 : (addr == 3) ? C2 : in_buf;
-endmodule
-// Row Out Address Mux
-module muxrowadr (
-    input wire [15:0] C1, input wire [15:0] C3,
-    input wire [15:0] in_buf, input wire [1:0] addr, output wire [15:0] out
-);
-    assign out = (addr == 2) ? C1 : (addr == 3) ? C3 : in_buf;
-endmodule
-
 // Pipeline modules
 // Input multiplexer to pick what's going into the first pipeline stage this clock
 module pipeIn (
@@ -240,13 +225,6 @@ module tt_um_machinaut_systolic (
         end
     endgenerate
 
-    // // Output Buffer Muxes
-    // wire [15:0] col_buf_out_mux;
-    // wire [15:0] row_buf_out_mux;
-
-    // muxcoladr col_buf_mux(.C0(C[0]), .C2(C[2]), .in_buf(col_in_full), .addr(col_ctrl_in_full[3:2]), .out(col_buf_out_mux));
-    // muxrowadr row_buf_mux(.C1(C[1]), .C3(C[3]), .in_buf(row_in_full), .addr(row_ctrl_in_full[3:2]), .out(row_buf_out_mux));
-
     // Output storage buffers, written at posedge clk and read at negedge clk
     always @(posedge clk) begin
         if (!rst_n) begin
@@ -258,14 +236,14 @@ module tt_um_machinaut_systolic (
             if (boundary) begin
                 if (col_ctrl_in_full[3:2] == 2) begin
                     col_buf_out <= C[0];
-                end else if (col_ctrl_buf_out[3:2] == 3) begin
+                end else if (col_ctrl_in_full[3:2] == 3) begin
                     col_buf_out <= C[2];
                 end else begin
                     col_buf_out <= col_in_full;
                 end
                 if (row_ctrl_in_full[3:2] == 2) begin
                     row_buf_out <= C[1];
-                end else if (row_ctrl_buf_out[3:2] == 3) begin
+                end else if (row_ctrl_in_full[3:2] == 3) begin
                     row_buf_out <= C[3];
                 end else begin
                     row_buf_out <= row_in_full;
