@@ -18,6 +18,27 @@ module mux4b4t1 (
     assign out = (addr == 0) ? in[15:12] : (addr == 1) ? in[11:8] : (addr == 2) ? in[7:4] : in[3:0];
 endmodule
 
+// Addresses for Columns and Rows
+// Address  Column  Row
+// 2        C0     C1
+// 3        C2     C3
+// default  in_buf  in_buf
+
+// Column Out Address Mux
+module muxcoladr (
+    input wire [15:0] C0, input wire [15:0] C2,
+    input wire [15:0] in_buf, input wire [1:0] addr, output wire [15:0] out
+);
+    assign out = (addr == 2) ? C0 : (addr == 3) ? C2 : in_buf;
+endmodule
+// Row Out Address Mux
+module muxrowadr (
+    input wire [15:0] C1, input wire [15:0] C3,
+    input wire [15:0] in_buf, input wire [1:0] addr, output wire [15:0] out
+);
+    assign out = (addr == 2) ? C1 : (addr == 3) ? C3 : in_buf;
+endmodule
+
 module tt_um_machinaut_systolic (
     input  wire [7:0] ui_in,    // Dedicated inputs - connected to the input switches
     output wire [7:0] uo_out,   // Dedicated outputs - connected to the 7 segment display
@@ -144,6 +165,13 @@ module tt_um_machinaut_systolic (
         end
     endgenerate
 
+    // Output Buffer Muxes
+    wire [15:0] col_buf_out_mux;
+    wire [15:0] row_buf_out_mux;
+
+    muxcoladr col_buf_mux(.C0(C[0]), .C2(C[2]), .in_buf(col_in_full), .addr(col_ctrl_addr), .out(col_buf_out_mux));
+    muxrowadr row_buf_mux(.C1(C[1]), .C3(C[3]), .in_buf(row_in_full), .addr(row_ctrl_addr), .out(row_buf_out_mux));
+
     // Output storage buffers, written at posedge clk and read at negedge clk
     always @(posedge clk) begin
         if (!rst_n) begin
@@ -153,8 +181,8 @@ module tt_um_machinaut_systolic (
             row_ctrl_buf_out <= 0;
         end else begin
             if (boundary) begin
-                col_buf_out <= (col_ctrl_addr == 2) ? C[0] : (col_ctrl_addr == 3) ? C[2] : col_in_full;
-                row_buf_out <= (row_ctrl_addr == 2) ? C[1] : (row_ctrl_addr == 3) ? C[3] : row_in_full;
+                col_buf_out <= col_buf_out_mux;
+                row_buf_out <= row_buf_out_mux;
                 col_ctrl_buf_out <= col_ctrl_in_full;
                 row_ctrl_buf_out <= row_ctrl_in_full;
             end

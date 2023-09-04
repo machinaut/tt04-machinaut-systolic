@@ -166,9 +166,9 @@ async def test_check_xor_sequence(dut):
     dut._log.info("read xor")
     await check_block(dut, col_in=0, row_in=0, col_ctrl_in=0b1000, row_ctrl_in=0b1000,
                         col_out=0, row_out=0, col_ctrl_out=0, row_ctrl_out=0)
-    await check_block(dut, col_in=0xFF00, row_in=0xFF00, col_ctrl_in=0b1100, row_ctrl_in=0b1100,
+    await check_block(dut, col_in=0, row_in=0, col_ctrl_in=0b1100, row_ctrl_in=0b1100,
                         col_out=0xFF00, row_out=0xFF00, col_ctrl_out=0b1000, row_ctrl_out=0b1000)
-    await check_block(dut, col_in=0xFF00, row_in=0xFF00, col_ctrl_in=0, row_ctrl_in=0,
+    await check_block(dut, col_in=0, row_in=0, col_ctrl_in=0, row_ctrl_in=0,
                         col_out=0xFF00, row_out=0xFF00, col_ctrl_out=0b1100, row_ctrl_out=0b1100)
 
     # Settle
