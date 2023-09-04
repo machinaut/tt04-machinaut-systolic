@@ -131,6 +131,29 @@ async def test_pass(dut):
 
 
 @cocotb.test()
+async def test_AB(dut):
+    dut._log.info("start test_AB")
+    await cocotb.start_soon(reset(dut))
+
+    await test_block(dut,
+        col_out="0000", row_out="0000", col_ctrl_out="0000", row_ctrl_out="0000",
+        col_in="1234",  row_in="5678",  col_ctrl_in="0100",  row_ctrl_in="0100",
+    )
+    await test_block(dut,
+        col_out="1234", row_out="5678", col_ctrl_out="0100", row_ctrl_out="0100",
+        col_in="abef",  row_in="face",  col_ctrl_in="0100",  row_ctrl_in="0100",
+    )
+    await test_block(dut,
+        col_out="abef", row_out="face", col_ctrl_out="0100", row_ctrl_out="0100",
+        col_in="0000",  row_in="0000",  col_ctrl_in="0000",  row_ctrl_in="0000",
+    )
+    await test_block(dut,
+        col_out="0000", row_out="0000", col_ctrl_out="0000", row_ctrl_out="0000",
+        col_in="0000",  row_in="0000",  col_ctrl_in="0000",  row_ctrl_in="0000",
+    )
+
+
+@cocotb.test()
 async def test_shift(dut):
     dut._log.info("start test_shift")
     await cocotb.start_soon(reset(dut))
@@ -269,5 +292,76 @@ async def test_C(dut):
     # Zero
     await test_block(dut,
         col_out="0000", row_out="0000", col_ctrl_out="0000", row_ctrl_out="0000",
+        col_in="0000",  row_in="0000",  col_ctrl_in="0000",  row_ctrl_in="0000",
+    )
+
+
+
+@cocotb.test()
+async def test_XOR(dut):
+    dut._log.info("start test_XOR")
+    await cocotb.start_soon(reset(dut))
+
+    await test_block(dut,
+        col_out="0000", row_out="0000", col_ctrl_out="0000", row_ctrl_out="0000",
+        col_in="1234",  row_in="5678",  col_ctrl_in="0100",  row_ctrl_in="0100",
+    )
+    await test_block(dut,
+        col_out="1234", row_out="5678", col_ctrl_out="0100", row_ctrl_out="0100",
+        col_in="c0c0",  row_in="c1c1",  col_ctrl_in="1000",  row_ctrl_in="1000",
+    )
+    await test_block(dut,
+        col_out="1256", row_out="3456", col_ctrl_out="1000", row_ctrl_out="1000",
+        col_in="c2c2",  row_in="c3c3",  col_ctrl_in="1100",  row_ctrl_in="1100",
+    )
+    await test_block(dut,
+        col_out="1278", row_out="3478", col_ctrl_out="1100", row_ctrl_out="1100",
+        col_in="0000",  row_in="0000",  col_ctrl_in="1000",  row_ctrl_in="1000",
+    )
+    await test_block(dut,
+        col_out="c0c0", row_out="c1c1", col_ctrl_out="1000", row_ctrl_out="1000",
+        col_in="0000",  row_in="0000",  col_ctrl_in="1100",  row_ctrl_in="1100",
+    )
+    await test_block(dut,
+        col_out="c2c2", row_out="c3c3", col_ctrl_out="1100", row_ctrl_out="1100",
+        col_in="0000",  row_in="0000",  col_ctrl_in="0000",  row_ctrl_in="0000",
+    )
+
+
+@cocotb.test()
+async def test_spaced_XOR(dut):
+    dut._log.info("start test_spaced_XOR")
+    await cocotb.start_soon(reset(dut))
+
+    await test_block(dut,
+        col_out="0000", row_out="0000", col_ctrl_out="0000", row_ctrl_out="0000",
+        col_in="1234",  row_in="5678",  col_ctrl_in="0100",  row_ctrl_in="0100",
+    )
+    await test_block(dut,
+        col_out="1234", row_out="5678", col_ctrl_out="0100", row_ctrl_out="0100",
+        col_in="0000",  row_in="0000",  col_ctrl_in="0000",  row_ctrl_in="0000",
+    )
+    await test_block(dut,
+        col_out="0000", row_out="0000", col_ctrl_out="0000", row_ctrl_out="0000",
+        col_in="0000",  row_in="0000",  col_ctrl_in="0000",  row_ctrl_in="0000",
+    )
+    await test_block(dut,
+        col_out="0000", row_out="0000", col_ctrl_out="0000", row_ctrl_out="0000",
+        col_in="c0c0",  row_in="c1c1",  col_ctrl_in="1000",  row_ctrl_in="1000",
+    )
+    await test_block(dut,
+        col_out="1256", row_out="3456", col_ctrl_out="1000", row_ctrl_out="1000",
+        col_in="c2c2",  row_in="c3c3",  col_ctrl_in="1100",  row_ctrl_in="1100",
+    )
+    await test_block(dut,
+        col_out="1278", row_out="3478", col_ctrl_out="1100", row_ctrl_out="1100",
+        col_in="0000",  row_in="0000",  col_ctrl_in="1000",  row_ctrl_in="1000",
+    )
+    await test_block(dut,
+        col_out="c0c0", row_out="c1c1", col_ctrl_out="1000", row_ctrl_out="1000",
+        col_in="0000",  row_in="0000",  col_ctrl_in="1100",  row_ctrl_in="1100",
+    )
+    await test_block(dut,
+        col_out="c2c2", row_out="c3c3", col_ctrl_out="1100", row_ctrl_out="1100",
         col_in="0000",  row_in="0000",  col_ctrl_in="0000",  row_ctrl_in="0000",
     )

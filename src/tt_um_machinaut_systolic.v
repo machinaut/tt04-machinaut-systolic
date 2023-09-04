@@ -189,11 +189,17 @@ module tt_um_machinaut_systolic (
     wire [15:0] PipeC;  // C input to pipeline
     wire [27:0] Pipe0w;  // Pipeline 0 output
     reg  [27:0] Pipe0s;  // Pipeline 0 state
+    reg         Save0s;  // Pipeline 0 state Save
     wire [23:0] Pipe1w;  // Pipeline 1 output
+    wire        Save1w;  // Pipeline 1 output Save
     reg  [23:0] Pipe1s;  // Pipeline 1 state
+    reg         Save1s;  // Pipeline 1 state Save
     wire [19:0] Pipe2w;  // Pipeline 2 output
+    wire        Save2w;  // Pipeline 2 output Save
     reg  [19:0] Pipe2s;  // Pipeline 2 state
+    reg         Save2s;  // Pipeline 2 state Save
     wire [15:0] Pipe3w;  // Pipeline 3 output (to C)
+    wire        Save3w;  // Pipeline 3 output Save
 
     // Increment handling
     always @(posedge clk) begin
@@ -265,12 +271,28 @@ module tt_um_machinaut_systolic (
     pipe1 p1(.in(Pipe0s), .out(Pipe1w));
     pipe2 p2(.in(Pipe1s), .out(Pipe2w));
     pipe3 p3(.in(Pipe2s), .out(Pipe3w));
+    // Save bits
+    assign Save1w = Save0s;
+    assign Save2w = Save1s;
+    assign Save3w = Save2s;
     // Latch pipeline outputs
     always @(posedge clk) begin
         if (!rst_n) begin  // Zero all regs if we're in reset
             Pipe0s <= 0; Pipe1s <= 0; Pipe2s <= 0;
+            Save0s <= 0; Save1s <= 0; Save2s <= 0;
         end else begin
             Pipe0s <= Pipe0w; Pipe1s <= Pipe1w; Pipe2s <= Pipe2w;
+            Save1s <= Save1w; Save2s <= Save2w;
+            // Set Save0s based on address
+            if (count == 2) begin
+                Save0s <= (col_ctrl_in_full[3:2] == 1) && (row_ctrl_in_full[3:2] == 1);
+            end else if (count == 3) begin
+                Save0s <= (col_ctrl_in_full[3:2] == 1) && (row_ctrl_in_full[3:2] == 1);
+            end else if (count == 0) begin
+                Save0s <= (col_ctrl_buf_out[3:2] == 1) && (row_ctrl_buf_out[3:2] == 1);
+            end else begin
+                Save0s <= (col_ctrl_buf_out[3:2] == 1) && (row_ctrl_buf_out[3:2] == 1);
+            end
         end
     end
 
@@ -285,7 +307,7 @@ module tt_um_machinaut_systolic (
                 end
                 if (col_ctrl_in_full[3:2] == 3) begin
                     C[2] <= col_in_full;
-                end else if (col_ctrl_buf_out[3:2] == 1) begin
+                end else if (Save2s) begin
                     C[2] <= Pipe3w;
                 end
                 if (row_ctrl_in_full[3:2] == 2) begin
@@ -295,15 +317,15 @@ module tt_um_machinaut_systolic (
                     C[3] <= row_in_full;
                 end
             end else if (count == 0) begin
-                if (row_ctrl_buf_out[3:2] == 1) begin
+                if (Save2s) begin
                     C[3] <= Pipe3w;
                 end
             end else if (count == 1) begin
-                if (col_ctrl_buf_out[3:2] == 1) begin
+                if (Save2s) begin
                     C[0] <= Pipe3w;
                 end
             end else begin
-                if (row_ctrl_buf_out[3:2] == 1) begin
+                if (Save2s) begin
                     C[1] <= Pipe3w;
                 end
             end
