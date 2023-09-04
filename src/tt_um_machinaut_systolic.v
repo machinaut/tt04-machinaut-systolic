@@ -39,6 +39,90 @@ module muxrowadr (
     assign out = (addr == 2) ? C1 : (addr == 3) ? C3 : in_buf;
 endmodule
 
+// Pipeline modules
+// Input multiplexer to pick what's going into the first pipeline stage this clock
+module pipeIn (
+    input wire [1:0] cnt,  // state counter
+    input wire [15:0] ci, input wire [15:0] co,  // column in/out
+    input wire [15:0] ri, input wire [15:0] ro,  // row in/out
+    // accumulator state
+    input wire [15:0] C0, input wire [15:0] C1, input wire [15:0] C2, input wire [15:0] C3,
+    // these will go into pipeline 0 this clock
+    output wire [7:0] A,  output wire [7:0] B, output wire [15:0] C
+);
+    // ci/co are A0 (15:8) and A1 (7:0)
+    // ri/ro are B0 (15:8) and B1 (7:0)
+    // Aliases for clarity
+    wire [7:0] A0i; wire [7:0] A1i; wire [7:0] A0o; wire [7:0] A1o;
+    wire [7:0] B0i; wire [7:0] B1i; wire [7:0] B0o; wire [7:0] B1o;
+    assign A0i = ci[15:8]; assign A1i = ci[7:0]; assign A0o = co[15:8]; assign A1o = co[7:0];
+    assign B0i = ri[15:8]; assign B1i = ri[7:0]; assign B0o = ro[15:8]; assign B1o = ro[7:0];
+    // If state is 2, read A0/B0 from inputs and C0 from accumulator
+    // If state is 3, read A1/B0 from inputs and C1 from accumulator
+    // If state is 0, read A0/B1 from outputs and C2 from accumulator
+    // If state is 1, read A1/B1 from outputs and C3 from accumulator
+    assign A = (cnt == 2) ? A0i : (cnt == 3) ? A1i : (cnt == 0) ? A0o : A1o;
+    assign B = (cnt == 2) ? B0i : (cnt == 3) ? B0i : (cnt == 0) ? B1o : B1o;
+    assign C = (cnt == 2) ? C0 : (cnt == 3) ? C1 : (cnt == 0) ? C2 : C3;
+endmodule
+module pipe0 (
+    input  wire [7:0] A, input  wire [7:0] B, input  wire [15:0] C,
+    output wire [27:0] out
+);
+    wire [15:0] Cout;
+    // XOR the top two bits of A and B to the top 2 bits of each byte of C
+    assign Cout = {C[15:14] ^ A[7:6], C[13:8], C[7:6] ^ B[7:6], C[5:0]};
+    assign out = {A[5:0], B[5:0], Cout};
+endmodule
+module pipe1 (
+    input wire [27:0] in,
+    output wire [23:0] out
+);
+    // Unpack inputs
+    wire [5:0] A;
+    wire [5:0] B;
+    wire [15:0] C;
+    wire [15:0] Cout;
+    assign A = in[27:22];
+    assign B = in[21:16];
+    assign C = in[15:0];
+    // XOR the next two bits of A and B to the next 2 bits of each byte of C
+    assign Cout = {C[15:14], C[13:12] ^ A[5:4], C[11:6], C[5:4] ^ B[5:4], C[3:0]};
+    assign out = {A[3:0], B[3:0], Cout};
+endmodule
+module pipe2 (
+    input wire [23:0] in,
+    output wire [19:0] out
+);
+    // Unpack inputs
+    wire [3:0] A;
+    wire [3:0] B;
+    wire [15:0] C;
+    wire [15:0] Cout;
+    assign A = in[23:20];
+    assign B = in[19:16];
+    assign C = in[15:0];
+    // XOR the next two bits of A and B to the next 2 bits of each byte of C
+    assign Cout = {C[15:12], C[11:10] ^ A[3:2], C[9:4], C[3:2] ^ B[3:2], C[1:0]};
+    assign out = {A[1:0], B[1:0], Cout};
+endmodule
+module pipe3 (
+    input wire [19:0] in,
+    output wire [15:0] out
+);
+    // Unpack inputs
+    wire [1:0] A;
+    wire [1:0] B;
+    wire [15:0] C;
+    wire [15:0] Cout;
+    assign A = in[19:18];
+    assign B = in[17:16];
+    assign C = in[15:0];
+    // XOR the next two bits of A and B to the next 2 bits of each byte of C
+    assign Cout = {C[15:10], C[9:8] ^ A[1:0], C[7:2], C[1:0] ^ B[1:0]};
+    assign out = Cout;
+endmodule
+
 module tt_um_machinaut_systolic (
     input  wire [7:0] ui_in,    // Dedicated inputs - connected to the input switches
     output wire [7:0] uo_out,   // Dedicated outputs - connected to the 7 segment display
@@ -63,9 +147,6 @@ module tt_um_machinaut_systolic (
     reg [1:0] count; // Counts to block size
     assign boundary = (count == 3);
 
-    // Accumulator
-    reg [15:0] C [0:3];
-
     // Systolic Data and Control
     // Each has wires connected to external input/outputs, a buffer, and a concatenated full value
     // Column Input
@@ -81,8 +162,6 @@ module tt_um_machinaut_systolic (
     reg [2:0] col_ctrl_buf_in;
     wire [3:0] col_ctrl_in_full;
     assign col_ctrl_in_full = {col_ctrl_buf_in, col_ctrl_in};
-    wire [1:0] col_ctrl_addr;
-    assign col_ctrl_addr = col_ctrl_in_full[3:2];
     // Row Input
     wire [3:0] row_in;
     assign row_in = ui_in[3:0];
@@ -96,8 +175,6 @@ module tt_um_machinaut_systolic (
     reg [2:0] row_ctrl_buf_in;
     wire [3:0] row_ctrl_in_full;
     assign row_ctrl_in_full = {row_ctrl_buf_in, row_ctrl_in};
-    wire [1:0] row_ctrl_addr;
-    assign row_ctrl_addr = row_ctrl_in_full[3:2];
     // Column Output
     reg [3:0] col_out;
     assign uo_out[7:4] = col_out;
@@ -117,6 +194,28 @@ module tt_um_machinaut_systolic (
     assign uio_out[0] = row_ctrl_out;
     reg [3:0] row_ctrl_buf_out;
 
+    // Accumulator
+    reg [15:0] C [0:3];
+    // Pipeline
+    wire [7:0] PipeA;  // A input to pipeline
+    wire [7:0] PipeB;  // B input to pipeline
+    wire [15:0] PipeC;  // C input to pipeline
+    wire [27:0] Pipe0w;  // Pipeline 0 output
+    reg  [27:0] Pipe0s;  // Pipeline 0 state
+    wire [23:0] Pipe1w;  // Pipeline 1 output
+    reg  [23:0] Pipe1s;  // Pipeline 1 state
+    wire [19:0] Pipe2w;  // Pipeline 2 output
+    reg  [19:0] Pipe2s;  // Pipeline 2 state
+    wire [15:0] Pipe3w;  // Pipeline 3 output (to C)
+
+    // Increment handling
+    always @(posedge clk) begin
+        if (!rst_n) begin  // Zero all regs if we're in reset
+            count <= 0;
+        end else begin
+            count <= count + 1;
+        end
+    end
 
     // Read from input buffers
     generate
@@ -139,38 +238,12 @@ module tt_um_machinaut_systolic (
         end
     endgenerate
 
-    // Increment handling
-    always @(posedge clk) begin
-        if (!rst_n) begin  // Zero all regs if we're in reset
-            count <= 0;
-        end else begin
-            count <= count + 1;
-        end
-    end
+    // // Output Buffer Muxes
+    // wire [15:0] col_buf_out_mux;
+    // wire [15:0] row_buf_out_mux;
 
-    // Accumulator
-    generate
-        for (i = 0; i < 2; i++) begin
-            for (j = 0; j < 2; j++) begin
-                always @(posedge clk) begin
-                    if (!rst_n) begin  // Zero all regs if we're in reset
-                        C[i * 2 + j] <= 0;
-                    end else begin
-                        if (boundary) begin
-                            C[i * 2 + j] <= C[i * 2 + j] ^ {col_in_full[15-8*j:8-8*j], row_in_full[15-8*i:8-8*i]};
-                        end
-                    end
-                end
-            end
-        end
-    endgenerate
-
-    // Output Buffer Muxes
-    wire [15:0] col_buf_out_mux;
-    wire [15:0] row_buf_out_mux;
-
-    muxcoladr col_buf_mux(.C0(C[0]), .C2(C[2]), .in_buf(col_in_full), .addr(col_ctrl_addr), .out(col_buf_out_mux));
-    muxrowadr row_buf_mux(.C1(C[1]), .C3(C[3]), .in_buf(row_in_full), .addr(row_ctrl_addr), .out(row_buf_out_mux));
+    // muxcoladr col_buf_mux(.C0(C[0]), .C2(C[2]), .in_buf(col_in_full), .addr(col_ctrl_in_full[3:2]), .out(col_buf_out_mux));
+    // muxrowadr row_buf_mux(.C1(C[1]), .C3(C[3]), .in_buf(row_in_full), .addr(row_ctrl_in_full[3:2]), .out(row_buf_out_mux));
 
     // Output storage buffers, written at posedge clk and read at negedge clk
     always @(posedge clk) begin
@@ -181,10 +254,78 @@ module tt_um_machinaut_systolic (
             row_ctrl_buf_out <= 0;
         end else begin
             if (boundary) begin
-                col_buf_out <= col_buf_out_mux;
-                row_buf_out <= row_buf_out_mux;
+                if (col_ctrl_in_full[3:2] == 2) begin
+                    col_buf_out <= C[0];
+                end else if (col_ctrl_buf_out[3:2] == 3) begin
+                    col_buf_out <= C[2];
+                end else begin
+                    col_buf_out <= col_in_full;
+                end
+                if (row_ctrl_in_full[3:2] == 2) begin
+                    row_buf_out <= C[1];
+                end else if (row_ctrl_buf_out[3:2] == 3) begin
+                    row_buf_out <= C[3];
+                end else begin
+                    row_buf_out <= row_in_full;
+                end
                 col_ctrl_buf_out <= col_ctrl_in_full;
                 row_ctrl_buf_out <= row_ctrl_in_full;
+            end
+        end
+    end
+
+    // Pipeline
+    // Multiplex inputs to pipeline
+    pipeIn pIn(.cnt(count),
+        .ci(col_in_full), .co(col_buf_out), .ri(row_in_full), .ro(row_buf_out),
+        .C0(C[0]), .C1(C[1]), .C2(C[2]), .C3(C[3]),
+        .A(PipeA), .B(PipeB), .C(PipeC));
+    // Pipeline stages
+    pipe0 p0(.A(PipeA), .B(PipeB), .C(PipeC), .out(Pipe0w));
+    pipe1 p1(.in(Pipe0s), .out(Pipe1w));
+    pipe2 p2(.in(Pipe1s), .out(Pipe2w));
+    pipe3 p3(.in(Pipe2s), .out(Pipe3w));
+    // Latch pipeline outputs
+    always @(posedge clk) begin
+        if (!rst_n) begin  // Zero all regs if we're in reset
+            Pipe0s <= 0; Pipe1s <= 0; Pipe2s <= 0;
+        end else begin
+            Pipe0s <= Pipe0w; Pipe1s <= Pipe1w; Pipe2s <= Pipe2w;
+        end
+    end
+
+    // Accumulator
+    always @(posedge clk) begin
+        if (!rst_n) begin  // Zero all regs if we're in reset
+            C[0] <= 0; C[1] <= 0; C[2] <= 0; C[3] <= 0;
+        end else begin
+            if (count == 3) begin
+                if (col_ctrl_in_full[3:2] == 2) begin
+                    C[0] <= col_in_full;
+                end
+                if (col_ctrl_in_full[3:2] == 3) begin
+                    C[2] <= col_in_full;
+                end else if (col_ctrl_buf_out[3:2] == 1) begin
+                    C[2] <= Pipe3w;
+                end
+                if (row_ctrl_in_full[3:2] == 2) begin
+                    C[1] <= row_in_full;
+                end
+                if (row_ctrl_in_full[3:2] == 3) begin
+                    C[3] <= row_in_full;
+                end
+            end else if (count == 0) begin
+                if (row_ctrl_buf_out[3:2] == 1) begin
+                    C[3] <= Pipe3w;
+                end
+            end else if (count == 1) begin
+                if (col_ctrl_buf_out[3:2] == 1) begin
+                    C[0] <= Pipe3w;
+                end
+            end else begin
+                if (row_ctrl_buf_out[3:2] == 1) begin
+                    C[1] <= Pipe3w;
+                end
             end
         end
     end
