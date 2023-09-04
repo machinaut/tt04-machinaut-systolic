@@ -19,10 +19,12 @@ module mux4b4t1 (
 endmodule
 
 // Addresses for Columns and Rows
+// Address is encoded as the top two bits of the _ctrl_ signal
 // Address  Column  Row
-// 2        C0     C1
-// 3        C2     C3
-// default  in_buf  in_buf
+// 0        pass    pass
+// 1        A       B
+// 2        C0      C1
+// 3        C2      C3
 
 // Column Out Address Mux
 module muxcoladr (
