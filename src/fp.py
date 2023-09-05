@@ -205,12 +205,18 @@ if __name__ == "__main__":
         # Assert inf
         assert cls.fromf(float("inf")).f >= cls.MAX
         assert cls.fromf(float("-inf")).f <= -cls.MAX
+        # Assert max is normalized
+        assert cls.fromf(cls.MAX).f == cls.MAX
+        assert cls.fromf(-cls.MAX).f == -cls.MAX
         # Assert max less than inf
         assert cls.fromf(cls.MAX).f < float("inf")
         assert cls.fromf(-cls.MAX).f > float("-inf")
         # Assert max greater than 1
         assert cls.fromf(cls.MAX).f > 1
         assert cls.fromf(-cls.MAX).f < -1
+        # Assert min is normalized
+        assert cls.fromf(cls.MIN).f == cls.MIN
+        assert cls.fromf(-cls.MIN).f == -cls.MIN
         # Assert min less than 1
         assert cls.fromf(cls.MIN).f < 1
         assert cls.fromf(-cls.MIN).f > -1
@@ -229,7 +235,7 @@ if __name__ == "__main__":
         # Assert epsilon more than max rounds up to inf
         assert cls.fromf(cls.MAX + 1e-10) == cls.fromf(float("inf"))
         assert cls.fromf(-cls.MAX - 1e-10) == cls.fromf(float("-inf"))
-        # Try drawing 100 random values
+        # Try drawing 100 random values, check that some are different
         for _ in range(100):
             vals = [cls.rand() for _ in range(100)]
             hexs = [val.h for val in vals]
