@@ -144,17 +144,32 @@ module pipe1 (
     input wire [31:0] in,
     output wire [23:0] out
 );
+    // Inputs
+    wire [15:0] P; wire [15:0] C;
+    wire Psig; wire [4:0] Pexp; wire [9:0] Pman;
+    wire Csig; wire [4:0] Cexp; wire [9:0] Cman;
+    // Preflags
+    wire Pexp0; wire Pexp1; wire Pman0;
+    wire Cexp0; wire Cexp1; wire Cman0;
+    // Flags
+    wire Pnan; wire Pinf; wire Pzero; wire Psub;
+    wire Cnan; wire Cinf; wire Czero; wire Csub;
+    // Sum value
+    wire [15:0] S;
+
     // Unpack inputs
-    wire [5:0] A;
-    wire [5:0] B;
-    wire [15:0] C;
-    wire [15:0] Cout;
-    assign A = in[27:22];
-    assign B = in[21:16];
-    assign C = in[15:0];
-    // XOR the next two bits of A and B to the next 2 bits of each byte of C
-    assign Cout = {C[15:14], C[13:12] ^ A[5:4], C[11:6], C[5:4] ^ B[5:4], C[3:0]};
-    assign out = {A[3:0], B[3:0], Cout};
+    assign P = in[31:16]; assign C = in[15:0];
+    assign Psig = P[15]; assign Pexp = P[14:10]; assign Pman = P[9:0];
+    assign Csig = C[15]; assign Cexp = C[14:10]; assign Cman = C[9:0];
+    // Set preflags
+    assign Pexp0 = (Pexp == 0); assign Pexp1 = (Pexp == 31); assign Pman0 = (Pman == 0);
+    assign Cexp0 = (Cexp == 0); assign Cexp1 = (Cexp == 31); assign Cman0 = (Cman == 0);
+    // Set flags
+    assign Pnan = Pexp1 & !Pman0; assign Pinf = Pexp1 & Pman0; assign Pzero = Pexp0 & Pman0; assign Psub = Pexp0 & !Pman0;
+    assign Cnan = Cexp1 & !Cman0; assign Cinf = Cexp1 & Cman0; assign Czero = Cexp0 & Cman0; assign Csub = Cexp0 & !Cman0;
+
+    // XOR for now
+    assign out = {8'h00, P ^ C};
 endmodule
 module pipe2 (
     input wire [23:0] in,
