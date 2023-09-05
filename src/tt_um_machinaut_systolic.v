@@ -146,7 +146,13 @@ module pipe0 (
 endmodule
 module pipe1 (
     input wire [31:0] in,
-    output wire [23:0] out
+    output wire [31:0] out
+);
+    assign out = in;
+endmodule
+module pipe2 (
+    input wire [31:0] in,
+    output wire [15:0] out
 );
     // Inputs
     wire [15:0] P; wire [15:0] C;
@@ -275,23 +281,13 @@ module pipe1 (
         (Sqf[10]) ? {Ssig, Sexpr, Sqf[9:0]} :
                     {Ssig, 5'b00000, Sqf[9:0]};
 
-    assign out = {8'h00, S};
-endmodule
-module pipe2 (
-    input wire [23:0] in,
-    output wire [19:0] out
-);
-    wire [15:0] C;
-    assign C = in[15:0];
-    assign out = {4'h0, C};
+    assign out = S;
 endmodule
 module pipe3 (
-    input wire [19:0] in,
+    input wire [15:0] in,
     output wire [15:0] out
 );
-    wire [15:0] C;
-    assign C = in[15:0];
-    assign out = C;
+    assign out = in;
 endmodule
 
 module tt_um_machinaut_systolic (
@@ -356,13 +352,13 @@ module tt_um_machinaut_systolic (
     wire [31:0] Pipe0w;  // Pipeline 0 output
     reg  [31:0] Pipe0s;  // Pipeline 0 state
     reg         Save0s;  // Pipeline 0 state Save
-    wire [23:0] Pipe1w;  // Pipeline 1 output
+    wire [31:0] Pipe1w;  // Pipeline 1 output
     wire        Save1w;  // Pipeline 1 output Save
-    reg  [23:0] Pipe1s;  // Pipeline 1 state
+    reg  [31:0] Pipe1s;  // Pipeline 1 state
     reg         Save1s;  // Pipeline 1 state Save
-    wire [19:0] Pipe2w;  // Pipeline 2 output
+    wire [31:0] Pipe2w;  // Pipeline 2 output
     wire        Save2w;  // Pipeline 2 output Save
-    reg  [19:0] Pipe2s;  // Pipeline 2 state
+    reg  [31:0] Pipe2s;  // Pipeline 2 state
     reg         Save2s;  // Pipeline 2 state Save
     wire [15:0] Pipe3w;  // Pipeline 3 output (to C)
     wire        Save3w;  // Pipeline 3 output Save
