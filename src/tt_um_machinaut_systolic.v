@@ -157,6 +157,11 @@ module pipe1 (
     // Sum value
     wire [15:0] S;
 
+    // Summands
+    wire [15:0] F; wire [15:0] G;
+    wire Fsig; wire [4:0] Fexp; wire [9:0] Fman;
+    wire Gsig; wire [4:0] Gexp; wire [9:0] Gman;
+
     // Unpack inputs
     assign P = in[31:16]; assign C = in[15:0];
     assign Psig = P[15]; assign Pexp = P[14:10]; assign Pman = P[9:0];
@@ -167,6 +172,12 @@ module pipe1 (
     // Set flags
     assign Pnan = Pexp1 & !Pman0; assign Pinf = Pexp1 & Pman0; assign Pzero = Pexp0 & Pman0; assign Psub = Pexp0 & !Pman0;
     assign Cnan = Cexp1 & !Cman0; assign Cinf = Cexp1 & Cman0; assign Czero = Cexp0 & Cman0; assign Csub = Cexp0 & !Cman0;
+
+    // Summands
+    assign F = (P[14:0] > C[14:0]) ? P : C;
+    assign G = (P[14:0] > C[14:0]) ? C : P;
+    assign Fsig = F[15]; assign Fexp = F[14:10]; assign Fman = F[9:0];
+    assign Gsig = G[15]; assign Gexp = G[14:10]; assign Gman = G[9:0];
 
     // XOR for now
     assign out = {8'h00, P ^ C};
