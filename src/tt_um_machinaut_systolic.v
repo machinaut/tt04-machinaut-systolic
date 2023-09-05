@@ -277,33 +277,17 @@ module pipe2 (
     input wire [23:0] in,
     output wire [19:0] out
 );
-    // Unpack inputs
-    wire [3:0] A;
-    wire [3:0] B;
     wire [15:0] C;
-    wire [15:0] Cout;
-    assign A = in[23:20];
-    assign B = in[19:16];
     assign C = in[15:0];
-    // XOR the next two bits of A and B to the next 2 bits of each byte of C
-    assign Cout = {C[15:12], C[11:10] ^ A[3:2], C[9:4], C[3:2] ^ B[3:2], C[1:0]};
-    assign out = {A[1:0], B[1:0], Cout};
+    assign out = {4'h0, C};
 endmodule
 module pipe3 (
     input wire [19:0] in,
     output wire [15:0] out
 );
-    // Unpack inputs
-    wire [1:0] A;
-    wire [1:0] B;
     wire [15:0] C;
-    wire [15:0] Cout;
-    assign A = in[19:18];
-    assign B = in[17:16];
     assign C = in[15:0];
-    // XOR the next two bits of A and B to the next 2 bits of each byte of C
-    assign Cout = {C[15:10], C[9:8] ^ A[1:0], C[7:2], C[1:0] ^ B[1:0]};
-    assign out = Cout;
+    assign out = C;
 endmodule
 
 module tt_um_machinaut_systolic (
