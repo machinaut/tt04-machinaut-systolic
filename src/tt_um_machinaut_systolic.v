@@ -342,24 +342,6 @@ module tt_um_machinaut_systolic (
     reg [2:0] row_ctrl_buf_in;
     wire [3:0] row_ctrl_in_full;
     assign row_ctrl_in_full = {row_ctrl_buf_in, row_ctrl_in};
-    // Column Output
-    reg [3:0] col_out;
-    assign uo_out[7:4] = col_out;
-    reg [15:0] col_buf_out;
-    // Column Control Output
-    reg col_ctrl_out;
-    assign uio_oe[1] = 1;
-    assign uio_out[1] = col_ctrl_out;
-    reg [3:0] col_ctrl_buf_out;
-    // Row Output
-    reg [3:0] row_out;
-    assign uo_out[3:0] = row_out;
-    reg [15:0] row_buf_out;
-    // Row Control Output
-    reg row_ctrl_out;
-    assign uio_oe[0] = 1;
-    assign uio_out[0] = row_ctrl_out;
-    reg [3:0] row_ctrl_buf_out;
 
     // Accumulator
     reg [15:0] C [0:3];
@@ -512,30 +494,28 @@ module tt_um_machinaut_systolic (
         end
     end
 
+    // Column Output
+    reg [15:0] col_buf_out;
+    // Column Control Output
+    reg [3:0] col_ctrl_buf_out;
+    // Row Output
+    reg [15:0] row_buf_out;
+    // Row Control Output
+    reg [3:0] row_ctrl_buf_out;
+
     // Output muxes
     wire [3:0] col_out_mux;
     wire col_ctrl_out_mux;
     wire [3:0] row_out_mux;
     wire row_ctrl_out_mux;
-
     mux4b4t1 col_mux(.in(col_buf_out), .addr(count), .out(col_out_mux));
     mux1b4t1 col_ctrl_mux(.in(col_ctrl_buf_out), .addr(count), .out(col_ctrl_out_mux));
     mux4b4t1 row_mux(.in(row_buf_out), .addr(count), .out(row_out_mux));
     mux1b4t1 row_ctrl_mux(.in(row_ctrl_buf_out), .addr(count), .out(row_ctrl_out_mux));
 
-    // Write to output on falling edge of clock
-    always @(negedge clk) begin
-        if (!rst_n) begin
-            col_out <= 0;
-            col_ctrl_out <= 0;
-            row_out <= 0;
-            row_ctrl_out <= 0;
-        end else begin
-            col_out <= col_out_mux;
-            col_ctrl_out <= col_ctrl_out_mux;
-            row_out <= row_out_mux;
-            row_ctrl_out <= row_ctrl_out_mux;
-        end
-    end
+    // Assign outputs
+    assign uo_out = (!rst_n) ? 0 : {col_out_mux, row_out_mux};
+    assign uio_oe[1:0] = 2'b11;
+    assign uio_out[1:0] = (!rst_n) ? 0 : {col_ctrl_out_mux, row_ctrl_out_mux};
 
 endmodule
