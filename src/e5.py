@@ -47,23 +47,29 @@ def fp16tof(s):
     return tof(sig, exp, man)
 
 E5MAX = e5tof('01111011')
+E5MIN = e5tof('00000001')
 FP16MAX = fp16tof('0111101111111111')
+FP16MIN = fp16tof('0000000000000001')
 
 # Use binary search to find the nearest e5 value
 def ftoe5(f):
     assert isinstance(f, float), f"f={repr(f)}"
     sig = '1' if f < 0 else '0'
     if f != f:
-        return sig + '1111101'
+        return '01111101'
     if abs(f) > E5MAX:
         return sig + '1111100'
+    if abs(f) <= E5MIN / 2:
+        return '00000000'
+    if abs(f) <= E5MIN:
+        return sig + '0000001'
 
     val = sig
     for i in range(1, 8):
         assert len(val) == i
         low = val + '0' + '1' * (7 - i)
         high = val + '1' + '0' * (7 - i)
-        if abs(f - e5tof(low)) <= abs(f - e5tof(high)):
+        if abs(f - e5tof(low)) < abs(f - e5tof(high)):
             val = val + '0'
         else:
             val = val + '1'
@@ -75,16 +81,20 @@ def ftofp16(f):
     assert isinstance(f, float), f"f={repr(f)}"
     sig = '1' if f < 0 else '0'
     if f != f:
-        return sig + '111110000000001'
+        return '0111110000000001'
     if abs(f) > FP16MAX:
         return sig + '111110000000000'
+    if abs(f) <= FP16MIN / 2:
+        return '0000000000000000'
+    if abs(f) <= FP16MIN:
+        return sig + '000000000000001'
 
     val = sig
     for i in range(1, 16):
         assert len(val) == i
         low = val + '0' + '1' * (15 - i)
         high = val + '1' + '0' * (15 - i)
-        if abs(f - fp16tof(low)) <= abs(f - fp16tof(high)):
+        if abs(f - fp16tof(low)) < abs(f - fp16tof(high)):
             val = val + '0'
         else:
             val = val + '1'
@@ -183,3 +193,41 @@ def ftoe5(f):
         return fe5[i - 1][1]
     return fe5[i][1]
 
+
+
+f = e5tof('00000001') * e5tof('00011000')
+(f - fp16tof(ftofp16(f))) == -f
+
+
+# %% Test FP16 more
+for _ in range(100000):
+    a = random.randint(0, 2 ** 16 - 1)
+    g = fp16tof(f"{a:016b}")
+    f = random.choice([g * 1.00000000000001, g * 0.999999999999])
+    e = ftofp16(f)
+    ef = fp16tof(e)
+    ed = abs(f - ef)
+    n = f"{int(e, 2) + 1:016b}"
+    nf = fp16tof(n)
+    nd = abs(f - nf)
+    if abs(f) >= FP16MAX:
+        if abs(ef) != float('inf'):
+            print(f"f={f}, e={e}, ef={ef}")
+            print(f"p={p}, pf={pf}")
+            print(f"ed={ed}, pd={pd}")
+            assert False
+    else:
+        if nd < ed:
+            print(f"f={f}, e={e}, ef={ef}")
+            print(f"n={n}, nf={nf}")
+            print(f"ed={ed}, nd={nd}")
+            assert False
+        if int(e):
+            p = f"{int(e, 2) - 1:016b}"
+            pf = fp16tof(p)
+            pd = abs(f - pf)
+            if pd < ed:
+                print(f"f={f}, e={e}, ef={ef}")
+                print(f"p={p}, pf={pf}")
+                print(f"ed={ed}, pd={pd}")
+                assert False

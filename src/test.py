@@ -54,23 +54,29 @@ def fp16tof(s):
     return tof(sig, exp, man)
 
 E5MAX = e5tof('01111011')
+E5MIN = e5tof('00000001')
 FP16MAX = fp16tof('0111101111111111')
+FP16MIN = fp16tof('0000000000000001')
 
 # Use binary search to find the nearest e5 value
 def ftoe5(f):
     assert isinstance(f, float), f"f={repr(f)}"
     sig = '1' if f < 0 else '0'
     if f != f:
-        return sig + '1111101'
+        return '01111101'
     if abs(f) > E5MAX:
         return sig + '1111100'
+    if abs(f) <= E5MIN / 2:
+        return '00000000'
+    if abs(f) <= E5MIN:
+        return sig + '0000001'
 
     val = sig
     for i in range(1, 8):
         assert len(val) == i
         low = val + '0' + '1' * (7 - i)
         high = val + '1' + '0' * (7 - i)
-        if abs(f - e5tof(low)) <= abs(f - e5tof(high)):
+        if abs(f - e5tof(low)) < abs(f - e5tof(high)):
             val = val + '0'
         else:
             val = val + '1'
@@ -82,23 +88,26 @@ def ftofp16(f):
     assert isinstance(f, float), f"f={repr(f)}"
     sig = '1' if f < 0 else '0'
     if f != f:
-        return sig + '111110000000001'
+        return '0111110000000001'
     if abs(f) > FP16MAX:
         return sig + '111110000000000'
+    if abs(f) <= FP16MIN / 2:
+        return '0000000000000000'
+    if abs(f) <= FP16MIN:
+        return sig + '000000000000001'
 
     val = sig
     for i in range(1, 16):
         assert len(val) == i
         low = val + '0' + '1' * (15 - i)
         high = val + '1' + '0' * (15 - i)
-        if abs(f - fp16tof(low)) <= abs(f - fp16tof(high)):
+        if abs(f - fp16tof(low)) < abs(f - fp16tof(high)):
             val = val + '0'
         else:
             val = val + '1'
 
     return val
 
- 
 
 # Should match info.yaml
 CLOCK_HZ = 50000000
@@ -410,6 +419,42 @@ def e5mul(A, B):
     C = f"{int(Cb, 2):016x}"
     assert is_hexs(C, 16), f"C={repr(C)}"
     return C
+
+
+@cocotb.test()
+async def test_1x1_exhaust(dut):
+    dut._log.info("start test_1x1_exhaust")
+    await cocotb.start_soon(reset(dut))
+
+    for i in range(256):
+        A = f"{i:04x}"
+        for j in range(256):
+            B = f"{j:04x}"
+            C = e5mul(A, B)
+            dut._log.info(f"   test_1x1_exhaust({i}, {j}) A={A} B={B} C={C}")
+            af, bf = e5tof(f"{i:08b}"), e5tof(f"{j:08b}")
+            cf = af * bf
+            c = f"{int(ftofp16(cf), 2):04x}"
+            dut._log.info(f"    af={af} bf={bf} cf={cf} c={c}")
+            C0, C1, C2, C3 = C[0:4], C[4:8], C[8:12], C[12:16]
+
+            await test_block(dut,
+                col_out="0000", row_out="0000", col_ctrl_out="0000", row_ctrl_out="0000",
+                col_in=A,       row_in=B,       col_ctrl_in="0100",  row_ctrl_in="0100",
+            )
+            await test_block(dut,
+                col_out=A,      row_out=B,      col_ctrl_out="0100", row_ctrl_out="0100",
+                col_in="0000",  row_in="0000",  col_ctrl_in="1000",  row_ctrl_in="1000",
+            )
+            await test_block(dut,
+                col_out=C0,     row_out=C1,     col_ctrl_out="1000", row_ctrl_out="1000",
+                col_in="0000",  row_in="0000",  col_ctrl_in="1100",  row_ctrl_in="1100",
+            )
+            await test_block(dut,
+                col_out=C2,     row_out=C3,     col_ctrl_out="1100", row_ctrl_out="1100",
+                col_in="0000",  row_in="0000",  col_ctrl_in="0000",  row_ctrl_in="0000",
+            )
+
 
 
 @cocotb.test()

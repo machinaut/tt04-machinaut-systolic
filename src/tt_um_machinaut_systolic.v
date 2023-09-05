@@ -170,7 +170,7 @@ module pipe1 (
 
     // Final product value
     assign P =
-        (Pnan) ? {Psig, 5'b11111, 10'b0000000001} :
+        (Pnan) ? {1'b0, 5'b11111, 10'b0000000001} :
         (Pinf) ? {Psig, 5'b11111, 10'b0000000000} :
         (Pzero) ? {Psig, 5'b00000, 10'b0000000000} :
         (Pqr[10]) ? {Psig, Pexpf, Pqr[9:0]} :
@@ -303,7 +303,7 @@ module pipe2 (
 
     // Final sum value
     assign S =
-        (Snan) ? {Ssig, 5'b11111, 10'b0000000001} :
+        (Snan) ? {1'b0, 5'b11111, 10'b0000000001} :
         (Sinf) ? {Ssig, 5'b11111, 10'b0000000000} :
         (Szero) ? {Ssig, 5'b00000, 10'b0000000000} :
         (Sqf[10]) ? {Ssig, Sexpr, Sqf[9:0]} :
