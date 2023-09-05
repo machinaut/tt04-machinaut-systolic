@@ -93,8 +93,8 @@ module pipe0 (
     // assign Pzero = !Pnan && !Pinf && (Azero || Bzero || (Asub && Bsub));
 
     // Multiplicands
-    assign Mq = {1'b1, (Asub) ? Bman : Aman};
-    assign Nq = {(Asub || Bsub) ? 1'b0 : 1'b1, (Asub) ? Aman : Bman};
+    assign Mq = {1'b1, (Asub) ? Bman : Aman, 1'b0};
+    assign Nq = {(Asub || Bsub) ? 1'b0 : 1'b1, (Asub) ? Aman : Bman, 1'b0};
     // Multiply
     assign Psig = Asig ^ Bsig;
     assign Psexp = Aexp + Bexp + ((Asub || Bsub) ? -14 : -15);

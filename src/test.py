@@ -1,34 +1,122 @@
 #!/usr/bin/env python
 # %%
 import random
+import bisect
 import cocotb
+from functools import lru_cache
 from cocotb.clock import Clock
 from cocotb.triggers import RisingEdge, FallingEdge, Timer, ClockCycles
 
-# Should match info.yaml (note )
+
+def is_bits(s, l=None):
+    return isinstance(s, str) and len(s) and all(c in '01' for c in s) and (l is None or len(s) == l)
+
+def is_hexs(s, l=None):
+    return isinstance(s, str) and len(s) and all(c in '0123456789abcdef' for c in s.lower()) and (l is None or len(s) == l)
+
+
+
+@lru_cache(maxsize=None)
+def tof(sig, exp, man):
+    assert is_bits(sig, 1), f"sig={repr(sig)}"
+    assert is_bits(exp, 5), f"exp={repr(exp)}"
+    assert is_bits(man), f"man={repr(man)}"
+
+    sign = -1 if sig == '1' else 1
+
+    if exp == '11111':
+        if int(man) == 0:
+            return sign * float('inf')
+        return float('nan')
+    
+    if exp == '00000':
+        frac = int(man, 2) / (1 << len(man))
+        pow = 2 ** -14
+    else:
+        frac = 1.0 + int(man, 2) / (1 << len(man))
+        pow = 2 ** (int(exp, 2) - 15)
+    return sign * frac * pow
+
+
+@lru_cache(maxsize=None)
+def e5tof(s):
+    assert is_bits(s, 8), f"s={repr(s)}"
+    sig, exp, man = s[0], s[1:6], s[6:]
+    assert is_bits(man, 2), f"man={repr(man)}"
+    return tof(sig, exp, man)
+
+
+@lru_cache(maxsize=None)
+def fp16tof(s):
+    assert is_bits(s, 16), f"s={repr(s)}"
+    sig, exp, man = s[0], s[1:6], s[6:]
+    assert is_bits(man, 10), f"man={repr(man)}"
+    return tof(sig, exp, man)
+
+E5MAX = e5tof('01111011')
+FP16MAX = fp16tof('0111101111111111')
+
+# Use binary search to find the nearest e5 value
+def ftoe5(f):
+    assert isinstance(f, float), f"f={repr(f)}"
+    sig = '1' if f < 0 else '0'
+    if f != f:
+        return sig + '1111101'
+    if abs(f) > E5MAX:
+        return sig + '1111100'
+
+    val = sig
+    for i in range(1, 8):
+        assert len(val) == i
+        low = val + '0' + '1' * (7 - i)
+        high = val + '1' + '0' * (7 - i)
+        if abs(f - e5tof(low)) <= abs(f - e5tof(high)):
+            val = val + '0'
+        else:
+            val = val + '1'
+
+    return val
+
+# Same but for fp16
+def ftofp16(f):
+    assert isinstance(f, float), f"f={repr(f)}"
+    sig = '1' if f < 0 else '0'
+    if f != f:
+        return sig + '111110000000001'
+    if abs(f) > FP16MAX:
+        return sig + '111110000000000'
+
+    val = sig
+    for i in range(1, 16):
+        assert len(val) == i
+        low = val + '0' + '1' * (15 - i)
+        high = val + '1' + '0' * (15 - i)
+        if abs(f - fp16tof(low)) <= abs(f - fp16tof(high)):
+            val = val + '0'
+        else:
+            val = val + '1'
+
+    return val
+
+ 
+
+# Should match info.yaml
 CLOCK_HZ = 50000000
 HALF_CLOCK_PERIOD_NS = 1e9 / (2 * CLOCK_HZ)
 EPSILON_NS = HALF_CLOCK_PERIOD_NS / 10
 
 
-def valid_hex(s, l=1):
-    return isinstance(s, str) and len(s) == l and 0 <= int(s, 16) < 2 ** (4 * l)
-
-def valid_bin(s, l=1):
-    return isinstance(s, str) and len(s) == l and 0 <= int(s, 2) < 2 ** l
-
-
 # Handle clocking as well as input/output mapping for test
 async def test_clock(dut, *, col_in, col_ctrl_in, row_in, row_ctrl_in, col_out, col_ctrl_out, row_out, row_ctrl_out):
     # Validate arguments
-    assert valid_hex(col_in), f"col_in={repr(col_in)}"
-    assert valid_bin(col_ctrl_in), f"col_ctrl_in={repr(col_ctrl_in)}"
-    assert valid_hex(row_in), f"row_in={repr(row_in)}"
-    assert valid_bin(row_ctrl_in), f"row_ctrl_in={repr(row_ctrl_in)}"
-    assert valid_hex(col_out), f"col_out={repr(col_out)}"
-    assert valid_bin(col_ctrl_out), f"col_ctrl_out={repr(col_ctrl_out)}"
-    assert valid_hex(row_out), f"row_out={repr(row_out)}"
-    assert valid_bin(row_ctrl_out), f"row_ctrl_out={repr(row_ctrl_out)}"
+    assert is_hexs(col_in), f"col_in={repr(col_in)}"
+    assert is_bits(col_ctrl_in), f"col_ctrl_in={repr(col_ctrl_in)}"
+    assert is_hexs(row_in), f"row_in={repr(row_in)}"
+    assert is_bits(row_ctrl_in), f"row_ctrl_in={repr(row_ctrl_in)}"
+    assert is_hexs(col_out), f"col_out={repr(col_out)}"
+    assert is_bits(col_ctrl_out), f"col_ctrl_out={repr(col_ctrl_out)}"
+    assert is_hexs(row_out), f"row_out={repr(row_out)}"
+    assert is_bits(row_ctrl_out), f"row_ctrl_out={repr(row_ctrl_out)}"
     # Map inputs/outputs to DUT
     ui_in = col_in + row_in
     uio_in = col_ctrl_in + row_ctrl_in + '00'
@@ -58,14 +146,14 @@ async def test_clock(dut, *, col_in, col_ctrl_in, row_in, row_ctrl_in, col_out, 
 
 async def test_block(dut, *, col_in, col_ctrl_in, row_in, row_ctrl_in, col_out, col_ctrl_out, row_out, row_ctrl_out):
     # Validate arguments, this time all strings of hex digits or binary digits
-    assert valid_hex(col_in, 4), f"col_in={repr(col_in)}"
-    assert valid_bin(col_ctrl_in, 4), f"col_ctrl_in={repr(col_ctrl_in)}"
-    assert valid_hex(row_in, 4), f"row_in={repr(row_in)}"
-    assert valid_bin(row_ctrl_in, 4), f"row_ctrl_in={repr(row_ctrl_in)}"
-    assert valid_hex(col_out, 4), f"col_out={repr(col_out)}"
-    assert valid_bin(col_ctrl_out, 4), f"col_ctrl_out={repr(col_ctrl_out)}"
-    assert valid_hex(row_out, 4), f"row_out={repr(row_out)}"
-    assert valid_bin(row_ctrl_out, 4), f"row_ctrl_out={repr(row_ctrl_out)}"
+    assert is_hexs(col_in, 4), f"col_in={repr(col_in)}"
+    assert is_bits(col_ctrl_in, 4), f"col_ctrl_in={repr(col_ctrl_in)}"
+    assert is_hexs(row_in, 4), f"row_in={repr(row_in)}"
+    assert is_bits(row_ctrl_in, 4), f"row_ctrl_in={repr(row_ctrl_in)}"
+    assert is_hexs(col_out, 4), f"col_out={repr(col_out)}"
+    assert is_bits(col_ctrl_out, 4), f"col_ctrl_out={repr(col_ctrl_out)}"
+    assert is_hexs(row_out, 4), f"row_out={repr(row_out)}"
+    assert is_bits(row_ctrl_out, 4), f"row_ctrl_out={repr(row_ctrl_out)}"
     # Test clock the block
     for i in range(4):
         await test_clock(dut,
@@ -296,26 +384,59 @@ async def test_C(dut):
     )
 
 
+def e5mul(A, B):
+    assert is_hexs(A, 4), f"A={repr(A)}"
+    assert is_hexs(B, 4), f"B={repr(B)}"
+    Ab = f"{int(A, 16):016b}"
+    Bb = f"{int(B, 16):016b}"
+    assert is_bits(Ab, 16), f"Ab={repr(Ab)}"
+    assert is_bits(Bb, 16), f"Bb={repr(Bb)}"
+    A0, A1 = Ab[0:8], Ab[8:16]
+    B0, B1 = Bb[0:8], Bb[8:16]
+    assert is_bits(A0, 8), f"A0={repr(A0)}"
+    assert is_bits(A1, 8), f"A1={repr(A1)}"
+    assert is_bits(B0, 8), f"B0={repr(B0)}"
+    assert is_bits(B1, 8), f"B1={repr(B1)}"
+    C0 = ftofp16(e5tof(A0) * e5tof(B0))
+    C1 = ftofp16(e5tof(A1) * e5tof(B0))
+    C2 = ftofp16(e5tof(A0) * e5tof(B1))
+    C3 = ftofp16(e5tof(A1) * e5tof(B1))
+    assert is_bits(C0, 16), f"C0={repr(C0)}"
+    assert is_bits(C1, 16), f"C1={repr(C1)}"
+    assert is_bits(C2, 16), f"C2={repr(C2)}"
+    assert is_bits(C3, 16), f"C3={repr(C3)}"
+    Cb = C0 + C1 + C2 + C3
+    assert is_bits(Cb, 64), f"Cb={repr(Cb)}"
+    C = f"{int(Cb, 2):016x}"
+    assert is_hexs(C, 16), f"C={repr(C)}"
+    return C
+
 
 @cocotb.test()
-async def test_XOR(dut):
-    dut._log.info("start test_XOR")
+async def test_mul(dut):
+    dut._log.info("start test_mul")
     await cocotb.start_soon(reset(dut))
+
+    rs = random.Random(198)
+    A = f"{rs.randint(0, 0xffff):04x}"
+    B = f"{rs.randint(0, 0xffff):04x}"
+    C = e5mul(A, B)
+    C0, C1, C2, C3 = C[0:4], C[4:8], C[8:12], C[12:16]
 
     await test_block(dut,
         col_out="0000", row_out="0000", col_ctrl_out="0000", row_ctrl_out="0000",
-        col_in="1234",  row_in="5678",  col_ctrl_in="0100",  row_ctrl_in="0100",
+        col_in=A,  row_in=B,  col_ctrl_in="0100",  row_ctrl_in="0100",
     )
     await test_block(dut,
-        col_out="1234", row_out="5678", col_ctrl_out="0100", row_ctrl_out="0100",
+        col_out=A, row_out=B, col_ctrl_out="0100", row_ctrl_out="0100",
         col_in="c0c0",  row_in="c1c1",  col_ctrl_in="1000",  row_ctrl_in="1000",
     )
     await test_block(dut,
-        col_out="1256", row_out="3456", col_ctrl_out="1000", row_ctrl_out="1000",
+        col_out=C0, row_out=C1, col_ctrl_out="1000", row_ctrl_out="1000",
         col_in="c2c2",  row_in="c3c3",  col_ctrl_in="1100",  row_ctrl_in="1100",
     )
     await test_block(dut,
-        col_out="1278", row_out="3478", col_ctrl_out="1100", row_ctrl_out="1100",
+        col_out=C2, row_out=C3, col_ctrl_out="1100", row_ctrl_out="1100",
         col_in="0000",  row_in="0000",  col_ctrl_in="1000",  row_ctrl_in="1000",
     )
     await test_block(dut,
