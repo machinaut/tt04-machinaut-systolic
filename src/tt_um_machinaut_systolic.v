@@ -20,11 +20,15 @@ endmodule
 
 // Addresses for Columns and Rows
 // Address is encoded as the top two bits of the _ctrl_ signal
-// Address  Column  Row
-// 0        pass    pass
-// 1        A       B
-// 2        C0      C1
-// 3        C2      C3
+// CC - Column Control Bits
+// RC - Row Control Bits
+// CC0 RC0 CC1 RC1 | Address
+// ----------------|--------
+// 0   0   0   0   | passthrough (default)
+// 0   1   X   Y   | AB (X sets A datatype, Y sets B datatype)
+// 1   0   0   0   | C Short (read in/out E5 format)
+// 1   0   1   0   | C Low (C0, C1 in full FP16)
+// 1   0   0   1   | C High (C2, C3 in full FP16)
 
 // Pipeline modules
 // Input multiplexer to pick what's going into the first pipeline stage this clock
