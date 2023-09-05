@@ -317,7 +317,6 @@ module pipe3 (
 );
     assign out = in;
 endmodule
-
 module tt_um_machinaut_systolic (
     input  wire [7:0] ui_in,    // Dedicated inputs - connected to the input switches
     output wire [7:0] uo_out,   // Dedicated outputs - connected to the 7 segment display
@@ -377,8 +376,8 @@ module tt_um_machinaut_systolic (
     wire [7:0] PipeA;  // A input to pipeline
     wire [7:0] PipeB;  // B input to pipeline
     wire [15:0] PipeC;  // C input to pipeline
-    wire [31:0] Pipe0w;  // Pipeline 0 output
-    reg  [31:0] Pipe0s;  // Pipeline 0 state
+    wire [34:0] Pipe0w;  // Pipeline 0 output
+    reg  [34:0] Pipe0s;  // Pipeline 0 state
     reg         Save0s;  // Pipeline 0 state Save
     wire [31:0] Pipe1w;  // Pipeline 1 output
     wire        Save1w;  // Pipeline 1 output Save
