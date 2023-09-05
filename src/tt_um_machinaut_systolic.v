@@ -58,7 +58,7 @@ module pipeIn (
 endmodule
 module pipe0 (
     input  wire [7:0] A, input  wire [7:0] B, input  wire [15:0] C,
-    output wire [31:0] out
+    output wire [34:0] out
 );
     // Inputs
     wire Asig; wire [4:0] Aexp; wire [1:0] Aman;
@@ -79,8 +79,6 @@ module pipe0 (
     wire signed [6:0] Psexp; wire signed [6:0] Psexps; wire [4:0] Pexpf;
     // Product flags
     wire Pnan; wire Pinf; wire Pzero;
-    // Product final value
-    wire [15:0] P;
 
     // Unpack inputs
     assign Asig = A[7]; assign Aexp = A[6:2]; assign Aman = A[1:0];
@@ -93,8 +91,8 @@ module pipe0 (
     assign Bnan = Bexp1 & !Bman0; assign Binf = Bexp1 & Bman0; assign Bzero = Bexp0 & Bman0; assign Bsub = Bexp0 & !Bman0;
     // Product flags - initial values
     assign Pnan = Anan || Bnan || (Ainf && Bzero) || (Azero && Binf);
-    // assign Pinf = !Pnan && (Ainf || Binf);
-    // assign Pzero = !Pnan && !Pinf && (Azero || Bzero || (Asub && Bsub));
+    assign Pinf = !Pnan && (Ainf || Binf);
+    assign Pzero = !Pnan && !Pinf && (Azero || Bzero || (Asub && Bsub));
 
     // Multiplicands
     assign Mq = {1'b1, (Asub) ? Bman : Aman, 1'b0};
@@ -103,14 +101,50 @@ module pipe0 (
     assign Psig = Asig ^ Bsig;
     assign Psexp = Aexp + Bexp + ((Asub || Bsub) ? -14 : -15);
     assign Pq = Mq * Nq;
+
+    assign out = {Pnan, Pinf, Pzero, Psig, Psexp, Pq, C};
+
+endmodule
+module pipe1 (
+    input wire [34:0] in,
+    output wire [31:0] out
+);
+
+    // Inputs
+    wire Pnan;
+    wire Pinfin;
+    wire Pzeroin;
+    wire Psig;
+    wire signed [6:0] Psexp;
+    wire [7:0] Pq;
+    wire [15:0] C;
+
+    // Product intermediates
+    wire [7:0] Pqs; wire [7:0] Pqs1; wire [13:0] Pqf; wire [10:0] Pqr;
+    wire Pqrg; wire Pqrr; wire Pqrs; wire Pqro;
+    wire signed [6:0] Psexps; wire [4:0] Pexpf;
+    // Product flags
+    wire Pinf; wire Pzero;
+    // Product final value
+    wire [15:0] P;
+
+    // Unpack inputs
+    assign C = in[15:0];
+    assign Pq = in[23:16];
+    assign Psexp = in[30:24];
+    assign Psig = in[31];
+    assign Pzeroin = in[32];
+    assign Pinfin = in[33];
+    assign Pnan = in[34];
+
     // Left shift to normalize, in normal flows this results in Pqs[7] == 1
     // TODO: have these only deal with the lower bits, and chop off the upper bit as always 1
     assign Pqs    = (Pq[7] == 1) ? Pq        : (Pq[6] == 1) ? {Pq[6:0], 1'b0} : (Pq[5] == 1) ? {Pq[5:0], 2'b00} : (Pq[4] == 1) ? {Pq[4:0], 3'b000} : {Pq[3:0], 4'b0000};
     assign Pqs1 = {1'b1, Pqs[6:0]};
     assign Psexps = (Pq[7] == 1) ? Psexp + 1 : (Pq[6] == 1) ? Psexp           : (Pq[5] == 1) ? Psexp - 1        : (Pq[4] == 1) ? Psexp - 2         : Psexp - 3;
     // Set Pinf, which might overflow post-normalization
-    assign Pinf = (!Pnan && (Ainf || Binf)) || (Psexps >= 31);
-    assign Pzero = (!Pnan && !Pinf && (Azero || Bzero || (Asub && Bsub))) || (Psexps < -10);
+    assign Pinf = Pinfin || (Psexps >= 31);
+    assign Pzero = Pzeroin || (Psexps < -10);
 
     // Shift right to get to a normal exponent
     assign Pexpf = (Psexps > 0) ? Psexps : 1;
@@ -143,12 +177,6 @@ module pipe0 (
                     {Psig, 5'b00000, Pqr[9:0]};
     // Output
     assign out = {P, C};
-endmodule
-module pipe1 (
-    input wire [31:0] in,
-    output wire [31:0] out
-);
-    assign out = in;
 endmodule
 module pipe2 (
     input wire [31:0] in,
