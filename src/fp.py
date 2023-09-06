@@ -250,6 +250,9 @@ if __name__ == "__main__":
             hexs = [val.h for val in vals]
             assert len(set(hexs)) > 10, f"cls={cls.__name__} hexs={hexs}"
 
+    # Test 0 * inf = nan
+    assert fma(E5M2.fromf(0.), E5M2.fromf(float("inf"))) == FP16.fromf(float("nan"))
+
     # Test FMA with random
     for _ in range(10000):
         A = random.choice([E5M2, E4M3]).rand()

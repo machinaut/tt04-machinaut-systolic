@@ -55,12 +55,12 @@ module pipeIn (
     // If state is 3, read A1/B0 from inputs and C1 from accumulator
     // If state is 0, read A0/B1 from outputs and C2 from accumulator
     // If state is 1, read A1/B1 from outputs and C3 from accumulator
-    assign Ae   = ((cnt == 2) || (cnt == 3)) ? cci[2] : cco[2];
-    assign Be   = ((cnt == 2) || (cnt == 3)) ? rci[2] : rco[2];
-    assign save = ((cnt == 2) || (cnt == 3)) ? ((cci[3] == 0) && (rci[3] == 1)) : ((cco[3] == 0) && (rco[3] == 1));
-    assign A = save ? 0 : (cnt == 2) ? A0i : (cnt == 3) ? A1i : (cnt == 0) ? A0o : A1o;
-    assign B = save ? 0 : (cnt == 2) ? B0i : (cnt == 3) ? B0i : (cnt == 0) ? B1o : B1o;
-    assign C = save ? 0 : (cnt == 2) ? C0 : (cnt == 3) ? C1 : (cnt == 0) ? C2 : C3;
+    assign Ae   = (cnt == 3) ? cci[2] : cco[2];
+    assign Be   = (cnt == 3) ? rci[2] : rco[2];
+    assign save = (cnt == 3) ? ((cci[3] == 0) && (rci[3] == 1)) : ((cco[3] == 0) && (rco[3] == 1));
+    assign A = (!save) ? 0 : (cnt == 3) ? A0i : (cnt == 0) ? A1o : (cnt == 1) ? A0o : A1o;
+    assign B = (!save) ? 0 : (cnt == 3) ? B0i : (cnt == 0) ? B0o : (cnt == 1) ? B1o : B1o;
+    assign C = (!save) ? 0 : (cnt == 3) ? C0  : (cnt == 0) ? C1  : (cnt == 1) ? C2 : C3;
 endmodule
 module pipe0 (
     input  wire [7:0] A, input  wire [7:0] B, input  wire [15:0] C,
@@ -109,7 +109,7 @@ module pipe0 (
     assign Psexp = Aexp + Bexp + ((Asub || Bsub) ? -14 : -15);
     assign Pq = Mq * Nq;
 
-    assign out = save ? 0 : {Pnan, Pinf, Pzero, Psig, Psexp, Pq, C};
+    assign out = save ? {Pnan, Pinf, Pzero, Psig, Psexp, Pq, C} : 0;
     assign saveout = save;
 endmodule
 module pipe1 (
@@ -177,13 +177,13 @@ module pipe1 (
 
     // Final product value
     assign P =
-        (Pnan) ? {1'b0, 5'b11111, 10'b0000000001} :
+        (Pnan) ? {1'b0, 5'b11111, 10'b1111111111} :
         (Pinf) ? {Psig, 5'b11111, 10'b0000000000} :
-        (Pzero) ? {Psig, 5'b00000, 10'b0000000000} :
+        (Pzero) ? {1'b0, 5'b00000, 10'b0000000000} :
         (Pqr[10]) ? {Psig, Pexpf, Pqr[9:0]} :
                     {Psig, 5'b00000, Pqr[9:0]};
     // Output
-    assign out = save ? 0 : {P, C};
+    assign out = save ? {P, C} : 0;
     assign saveout = save;
 endmodule
 module pipe2 (
@@ -311,20 +311,20 @@ module pipe2 (
 
     // Final sum value
     assign S =
-        (Snan) ? {1'b0, 5'b11111, 10'b0000000001} :
+        (Snan) ? {1'b0, 5'b11111, 10'b1111111111} :
         (Sinf) ? {Ssig, 5'b11111, 10'b0000000000} :
         (Szero) ? {Ssig, 5'b00000, 10'b0000000000} :
         (Sqf[10]) ? {Ssig, Sexpr, Sqf[9:0]} :
                     {Ssig, 5'b00000, Sqf[9:0]};
 
-    assign out = save ? 0 : {16'h0000, S};
+    assign out = save ? {16'h0000, S} : 0;
     assign saveout = save;
 endmodule
 module pipe3 (
     input wire [31:0] in, input wire save,
     output wire [15:0] out, output wire saveout
 );
-    assign out = save ? 0 : in[15:0];
+    assign out = save ? in[15:0] : 0;
     assign saveout = save;
 endmodule
 module tt_um_machinaut_systolic (
@@ -381,7 +381,10 @@ module tt_um_machinaut_systolic (
     assign row_ctrl_in_full = {row_ctrl_buf_in, row_ctrl_in};
 
     // Accumulator
-    reg [15:0] C [0:3];
+    reg [15:0] C0;
+    reg [15:0] C1;
+    reg [15:0] C2;
+    reg [15:0] C3;
     // Pipeline
     wire [7:0] PipeA;  // A input to pipeline
     wire [7:0] PipeB;  // B input to pipeline
@@ -444,11 +447,11 @@ module tt_um_machinaut_systolic (
         end else begin
             if (boundary) begin
                 if ((col_ctrl_in_full[3:2] == 2'b10) && (row_ctrl_in_full[3:2] == 2'b01)) begin
-                    col_buf_out <= C[0];
-                    row_buf_out <= C[1];
+                    col_buf_out <= C0;
+                    row_buf_out <= Pipe3Sw ? Pipe3w : C1;
                 end else if ((col_ctrl_in_full[3:2] == 2'b11) && (row_ctrl_in_full[3:2] == 2'b00)) begin
-                    col_buf_out <= C[2];
-                    row_buf_out <= C[3];
+                    col_buf_out <= C2;
+                    row_buf_out <= C3;
                 end else begin
                     col_buf_out <= col_in_full;
                     row_buf_out <= row_in_full;
@@ -466,7 +469,7 @@ module tt_um_machinaut_systolic (
         .cci(col_ctrl_in_full), .cco(col_ctrl_buf_out),
         .ri(row_in_full), .ro(row_buf_out),
         .rci(row_ctrl_in_full), .rco(row_ctrl_buf_out),
-        .C0(C[0]), .C1(C[1]), .C2(C[2]), .C3(C[3]),
+        .C0(C0), .C1(C1), .C2(C2), .C3(C3),
         .A(PipeA), .B(PipeB), .C(PipeC),
         .Ae(PipeAe), .Be(PipeBe), .save(PipeSave)
     );
@@ -492,30 +495,30 @@ module tt_um_machinaut_systolic (
     // Accumulator
     always @(posedge clk) begin
         if (!rst_n) begin  // Zero all regs if we're in reset
-            C[0] <= 0; C[1] <= 0; C[2] <= 0; C[3] <= 0;
+            C0 <= 0; C1 <= 0; C2 <= 0; C3 <= 0;
         end else begin
             if (count == 3) begin
                 if ((col_ctrl_in_full[3:2] == 2'b10) && (row_ctrl_in_full[3:2] == 2'b01)) begin
-                    C[0] <= col_in_full;
-                    C[1] <= row_in_full;
+                    C0 <= col_in_full;
+                    C1 <= row_in_full;
+                end else if (Pipe3Sw) begin
+                    C1 <= Pipe3w;
                 end
                 if ((col_ctrl_in_full[3:2] == 2'b11) && (row_ctrl_in_full[3:2] == 2'b00)) begin
-                    C[2] <= col_in_full;
-                    C[3] <= row_in_full;
-                end else if (Pipe3Sw) begin
-                    C[2] <= Pipe3w;
+                    C2 <= col_in_full;
+                    C3 <= row_in_full;
                 end
             end else if (count == 0) begin
                 if (Pipe3Sw) begin
-                    C[3] <= Pipe3w;
+                    C2 <= Pipe3w;
                 end
             end else if (count == 1) begin
                 if (Pipe3Sw) begin
-                    C[0] <= Pipe3w;
+                    C3 <= Pipe3w;
                 end
             end else begin
                 if (Pipe3Sw) begin
-                    C[1] <= Pipe3w;
+                    C0 <= Pipe3w;
                 end
             end
         end

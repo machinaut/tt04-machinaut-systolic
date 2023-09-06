@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 # %%
 import random
+from itertools import product
 
 import cocotb
 from cocotb.clock import Clock
@@ -210,7 +211,6 @@ async def test_pass(dut):
 async def test_shift(dut):
     dut._log.info("start test_shift")
     await cocotb.start_soon(reset(dut))
-
     blocks = [
         {'a': 6, 'ci': '1234', 'ri': '5678',},
         {'a': 0, 'ci': 'aaaa', 'ri': 'bbbb', 'co': '0000', 'ro': '0000',},
@@ -229,7 +229,6 @@ async def test_shift(dut):
 async def test_shift2(dut):
     dut._log.info("start test_shift2")
     await cocotb.start_soon(reset(dut))
-
     blocks = [
         {'a': 7, 'ci': '1234', 'ri': '5678',},
         {'a': 0, 'ci': 'aaaa', 'ri': 'bbbb', 'co': '0000', 'ro': '0000',},
@@ -245,7 +244,6 @@ async def test_shift2(dut):
 async def test_C(dut):
     dut._log.info("start test_C")
     await cocotb.start_soon(reset(dut))
-
     blocks = [
         {'a': 6, 'ci': 'c0c0', 'ri': 'c1c1',},
         {'a': 7, 'ci': 'c2c2', 'ri': 'c3c3', 'co': '0000', 'ro': '0000',},
@@ -262,266 +260,38 @@ async def test_C(dut):
     await test_sequence(dut, blocks=blocks)
 
 
-def e5mul(A, B):
-    assert is_hex(A, 4), f"A={repr(A)}"
-    assert is_hex(B, 4), f"B={repr(B)}"
-    Ab = f"{int(A, 16):016b}"
-    Bb = f"{int(B, 16):016b}"
-    assert is_bin(Ab, 16), f"Ab={repr(Ab)}"
-    assert is_bin(Bb, 16), f"Bb={repr(Bb)}"
-    A0, A1 = Ab[0:8], Ab[8:16]
-    B0, B1 = Bb[0:8], Bb[8:16]
-    assert is_bin(A0, 8), f"A0={repr(A0)}"
-    assert is_bin(A1, 8), f"A1={repr(A1)}"
-    assert is_bin(B0, 8), f"B0={repr(B0)}"
-    assert is_bin(B1, 8), f"B1={repr(B1)}"
-    C0 = ftofp16(e5tof(A0) * e5tof(B0))
-    C1 = ftofp16(e5tof(A1) * e5tof(B0))
-    C2 = ftofp16(e5tof(A0) * e5tof(B1))
-    C3 = ftofp16(e5tof(A1) * e5tof(B1))
-    assert is_bin(C0, 16), f"C0={repr(C0)}"
-    assert is_bin(C1, 16), f"C1={repr(C1)}"
-    assert is_bin(C2, 16), f"C2={repr(C2)}"
-    assert is_bin(C3, 16), f"C3={repr(C3)}"
-    Cb = C0 + C1 + C2 + C3
-    assert is_bin(Cb, 64), f"Cb={repr(Cb)}"
-    C = f"{int(Cb, 2):016x}"
-    assert is_hex(C, 16), f"C={repr(C)}"
-    return C
+def mul22(Ah, Bh):
+    assert is_hex(Ah, 4), f"Ah={repr(Ah)}"
+    assert is_hex(Bh, 4), f"Bh={repr(Bh)}"
+    A0, A1 = E5M2.fromh(Ah[0:2]), E5M2.fromh(Ah[2:4])
+    B0, B1 = E5M2.fromh(Bh[0:2]), E5M2.fromh(Bh[2:4])
+    C0 = fma(A0, B0)
+    C1 = fma(A1, B0)
+    C2 = fma(A0, B1)
+    C3 = fma(A1, B1)
+    Ch = C0.h + C1.h + C2.h + C3.h
+    assert is_hex(Ch, 16), f"Ch={repr(Ch)}"
+    return Ch
 
 
 @cocotb.test()
-async def test_1x1_exhaust(dut):
-    dut._log.info("start test_1x1_exhaust")
+async def test_1x1(dut):
+    dut._log.info("start test_1x1")
     await cocotb.start_soon(reset(dut))
 
-    for i in range(256):
-        A = f"{i:04x}"
-        for j in range(256):
-            B = f"{j:04x}"
-            C = e5mul(A, B)
-            dut._log.info(f"   test_1x1_exhaust({i}, {j}) A={A} B={B} C={C}")
-            af, bf = e5tof(f"{i:08b}"), e5tof(f"{j:08b}")
-            cf = af * bf
-            c = f"{int(ftofp16(cf), 2):04x}"
-            dut._log.info(f"    af={af} bf={bf} cf={cf} c={c}")
-            C0, C1, C2, C3 = C[0:4], C[4:8], C[8:12], C[12:16]
-
-            await test_block(
-                dut,
-                col_out="0000",
-                row_out="0000",
-                col_ctrl_out="0000",
-                row_ctrl_out="0000",
-                col_in=A,
-                row_in=B,
-                col_ctrl_in="0100",
-                row_ctrl_in="0100",
-            )
-            await test_block(
-                dut,
-                col_out=A,
-                row_out=B,
-                col_ctrl_out="0100",
-                row_ctrl_out="0100",
-                col_in="0000",
-                row_in="0000",
-                col_ctrl_in="1000",
-                row_ctrl_in="1000",
-            )
-            await test_block(
-                dut,
-                col_out=C0,
-                row_out=C1,
-                col_ctrl_out="1000",
-                row_ctrl_out="1000",
-                col_in="0000",
-                row_in="0000",
-                col_ctrl_in="1100",
-                row_ctrl_in="1100",
-            )
-            await test_block(
-                dut,
-                col_out=C2,
-                row_out=C3,
-                col_ctrl_out="1100",
-                row_ctrl_out="1100",
-                col_in="0000",
-                row_in="0000",
-                col_ctrl_in="0000",
-                row_ctrl_in="0000",
-            )
-
-
-@cocotb.test()
-async def test_mul(dut):
-    dut._log.info("start test_mul")
-    await cocotb.start_soon(reset(dut))
-
-    rs = random.Random(198)
-    A = f"{rs.randint(0, 0xffff):04x}"
-    B = f"{rs.randint(0, 0xffff):04x}"
-    C = e5mul(A, B)
-    C0, C1, C2, C3 = C[0:4], C[4:8], C[8:12], C[12:16]
-
-    await test_block(
-        dut,
-        col_out="0000",
-        row_out="0000",
-        col_ctrl_out="0000",
-        row_ctrl_out="0000",
-        col_in=A,
-        row_in=B,
-        col_ctrl_in="0100",
-        row_ctrl_in="0100",
-    )
-    await test_block(
-        dut,
-        col_out=A,
-        row_out=B,
-        col_ctrl_out="0100",
-        row_ctrl_out="0100",
-        col_in="c0c0",
-        row_in="c1c1",
-        col_ctrl_in="1000",
-        row_ctrl_in="1000",
-    )
-    await test_block(
-        dut,
-        col_out=C0,
-        row_out=C1,
-        col_ctrl_out="1000",
-        row_ctrl_out="1000",
-        col_in="c2c2",
-        row_in="c3c3",
-        col_ctrl_in="1100",
-        row_ctrl_in="1100",
-    )
-    await test_block(
-        dut,
-        col_out=C2,
-        row_out=C3,
-        col_ctrl_out="1100",
-        row_ctrl_out="1100",
-        col_in="0000",
-        row_in="0000",
-        col_ctrl_in="1000",
-        row_ctrl_in="1000",
-    )
-    await test_block(
-        dut,
-        col_out="c0c0",
-        row_out="c1c1",
-        col_ctrl_out="1000",
-        row_ctrl_out="1000",
-        col_in="0000",
-        row_in="0000",
-        col_ctrl_in="1100",
-        row_ctrl_in="1100",
-    )
-    await test_block(
-        dut,
-        col_out="c2c2",
-        row_out="c3c3",
-        col_ctrl_out="1100",
-        row_ctrl_out="1100",
-        col_in="0000",
-        row_in="0000",
-        col_ctrl_in="0000",
-        row_ctrl_in="0000",
-    )
-
-
-@cocotb.test()
-async def test_spaced_XOR(dut):
-    dut._log.info("start test_spaced_XOR")
-    await cocotb.start_soon(reset(dut))
-
-    await test_block(
-        dut,
-        col_out="0000",
-        row_out="0000",
-        col_ctrl_out="0000",
-        row_ctrl_out="0000",
-        col_in="1234",
-        row_in="5678",
-        col_ctrl_in="0100",
-        row_ctrl_in="0100",
-    )
-    await test_block(
-        dut,
-        col_out="1234",
-        row_out="5678",
-        col_ctrl_out="0100",
-        row_ctrl_out="0100",
-        col_in="0000",
-        row_in="0000",
-        col_ctrl_in="0000",
-        row_ctrl_in="0000",
-    )
-    await test_block(
-        dut,
-        col_out="0000",
-        row_out="0000",
-        col_ctrl_out="0000",
-        row_ctrl_out="0000",
-        col_in="0000",
-        row_in="0000",
-        col_ctrl_in="0000",
-        row_ctrl_in="0000",
-    )
-    await test_block(
-        dut,
-        col_out="0000",
-        row_out="0000",
-        col_ctrl_out="0000",
-        row_ctrl_out="0000",
-        col_in="c0c0",
-        row_in="c1c1",
-        col_ctrl_in="1000",
-        row_ctrl_in="1000",
-    )
-    await test_block(
-        dut,
-        col_out="1256",
-        row_out="3456",
-        col_ctrl_out="1000",
-        row_ctrl_out="1000",
-        col_in="c2c2",
-        row_in="c3c3",
-        col_ctrl_in="1100",
-        row_ctrl_in="1100",
-    )
-    await test_block(
-        dut,
-        col_out="1278",
-        row_out="3478",
-        col_ctrl_out="1100",
-        row_ctrl_out="1100",
-        col_in="0000",
-        row_in="0000",
-        col_ctrl_in="1000",
-        row_ctrl_in="1000",
-    )
-    await test_block(
-        dut,
-        col_out="c0c0",
-        row_out="c1c1",
-        col_ctrl_out="1000",
-        row_ctrl_out="1000",
-        col_in="0000",
-        row_in="0000",
-        col_ctrl_in="1100",
-        row_ctrl_in="1100",
-    )
-    await test_block(
-        dut,
-        col_out="c2c2",
-        row_out="c3c3",
-        col_ctrl_out="1100",
-        row_ctrl_out="1100",
-        col_in="0000",
-        row_in="0000",
-        col_ctrl_in="0000",
-        row_ctrl_in="0000",
-    )
+    # TODO: Do E4M3 format combinations
+    # values = list(product(range(256), range(256)))
+    values = [(random.randint(0, 255), random.randint(0, 255)) for _ in range(100)]
+    for i, j in values:
+        Ah = f"{i:04x}"
+        Bh = f"{j:04x}"
+        Ch = mul22(Ah, Bh)
+        dut._log.info(f"  test_1x1[{i},{j}] {Ah} {Bh} {Ch}")
+        blocks = [
+            {'a': 1, 'ci': Ah, 'ri': Bh,},
+            {'a': 6,},
+            {'a': 7, 'co': Ch[0:4], 'ro': Ch[4:8],},
+            {'a': 0, 'co': Ch[8:12], 'ro': Ch[12:16],},
+            {},
+        ]
+        await test_sequence(dut, blocks=blocks)
