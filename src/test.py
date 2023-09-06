@@ -227,17 +227,17 @@ async def test_C(dut):
     await test_sequence(dut, blocks=blocks)
 
 
-def mul22(Ah, Bh):
+def mul22(Ah, Bh, half=False):
     assert is_hex(Ah, 4), f"Ah={repr(Ah)}"
     assert is_hex(Bh, 4), f"Bh={repr(Bh)}"
     A0, A1 = E5M2.fromh(Ah[0:2]), E5M2.fromh(Ah[2:4])
     B0, B1 = E5M2.fromh(Bh[0:2]), E5M2.fromh(Bh[2:4])
-    C0 = fma(A0, B0)
-    C1 = fma(A1, B0)
-    C2 = fma(A0, B1)
-    C3 = fma(A1, B1)
+    C0 = fma(A0, B0, half=half)
+    C1 = fma(A1, B0, half=half)
+    C2 = fma(A0, B1, half=half)
+    C3 = fma(A1, B1, half=half)
     Ch = C0.h + C1.h + C2.h + C3.h
-    assert is_hex(Ch, 16), f"Ch={repr(Ch)}"
+    assert is_hex(Ch, 8 if half else 16), f"Ch={repr(Ch)}"
     return Ch
 
 
@@ -265,8 +265,8 @@ async def test_1x1(dut):
 
 
 @cocotb.test()
-async def test_2x2(dut):
-    dut._log.info("start test_2x2")
+async def test_ABC(dut):
+    dut._log.info("start test_ABC")
     await cocotb.start_soon(reset(dut))
 
     # TODO: Do E4M3 format combinations
@@ -275,7 +275,7 @@ async def test_2x2(dut):
         Ah = f"{i:04x}"
         Bh = f"{j:04x}"
         Ch = mul22(Ah, Bh)
-        dut._log.info(f"  test_2x2 {Ah} {Bh} {Ch}")
+        dut._log.info(f"  test_ABC {Ah} {Bh} {Ch}")
         blocks = [
             {'a': 1, 'ci': Ah, 'ri': Bh,},
             {'a': 6,},
@@ -284,7 +284,6 @@ async def test_2x2(dut):
             {},
         ]
         await test_sequence(dut, blocks=blocks)
-
 
 
 @cocotb.test()
@@ -339,3 +338,32 @@ async def test_extend(dut):
             {}
         ]
         await test_sequence(dut, blocks=blocks)
+
+
+@cocotb.test()
+async def test_ABChalf(dut):
+    dut._log.info("start test_ABChalf")
+    await cocotb.start_soon(reset(dut))
+
+    # TODO: Do E4M3 format combinations
+    # values = [(random.randint(0, 0xffff), random.randint(0, 0xffff)) for _ in range(30)]
+    values = [(0, 0)]
+    for i, j in values:
+        # Ah = f"{i:04x}"
+        # Bh = f"{j:04x}"
+        Ah = '7f7f'
+        Bh = '0000'
+        Ch = mul22(Ah, Bh, half=True)
+        C0 = Ch[0:2]
+        C1 = Ch[2:4]
+        C2 = Ch[4:6]
+        C3 = Ch[6:8]
+        dut._log.info(f"  test_ABChalf {Ah} {Bh} {Ch}")
+        blocks = [
+            {'a': 1, 'ci': Ah, 'ri': Bh,},
+            {'a': 5,},
+            {'a': 0, 'co': C0 + C2, 'ro': C1 + C3,},
+            {},
+        ]
+        await test_sequence(dut, blocks=blocks)
+
