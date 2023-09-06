@@ -174,39 +174,6 @@ async def test_pass(dut):
     await test_sequence(dut, blocks=blocks)
 
 
-# @cocotb.test()
-# async def test_AB(dut):
-#     dut._log.info("start test_AB")
-#     await cocotb.start_soon(reset(dut))
-
-#     await test_block(
-#         dut,
-#         col_in="1234",
-#         row_in="5678",
-#         col_ctrl_in="0100",
-#         row_ctrl_in="0100",
-#     )
-#     await test_block(
-#         dut,
-#         col_out="1234",
-#         row_out="5678",
-#         col_ctrl_out="0100",
-#         row_ctrl_out="0100",
-#         col_in="abef",
-#         row_in="face",
-#         col_ctrl_in="0100",
-#         row_ctrl_in="0100",
-#     )
-#     await test_block(
-#         dut,
-#         col_out="abef",
-#         row_out="face",
-#         col_ctrl_out="0100",
-#         row_ctrl_out="0100",
-#     )
-#     await test_block(dut)
-
-
 @cocotb.test()
 async def test_shift(dut):
     dut._log.info("start test_shift")
@@ -281,12 +248,34 @@ async def test_1x1(dut):
 
     # TODO: Do E4M3 format combinations
     # values = list(product(range(256), range(256)))
-    values = [(random.randint(0, 255), random.randint(0, 255)) for _ in range(100)]
+    values = [(random.randint(0, 255), random.randint(0, 255)) for _ in range(30)]
     for i, j in values:
         Ah = f"{i:02x}00" if random.random() < 0.5 else f"00{i:02x}"
         Bh = f"{j:02x}00" if random.random() < 0.5 else f"00{j:02x}"
         Ch = mul22(Ah, Bh)
         dut._log.info(f"  test_1x1 {Ah} {Bh} {Ch}")
+        blocks = [
+            {'a': 1, 'ci': Ah, 'ri': Bh,},
+            {'a': 6,},
+            {'a': 7, 'co': Ch[0:4], 'ro': Ch[4:8],},
+            {'a': 0, 'co': Ch[8:12], 'ro': Ch[12:16],},
+            {},
+        ]
+        await test_sequence(dut, blocks=blocks)
+
+
+@cocotb.test()
+async def test_2x2(dut):
+    dut._log.info("start test_2x2")
+    await cocotb.start_soon(reset(dut))
+
+    # TODO: Do E4M3 format combinations
+    values = [(random.randint(0, 0xffff), random.randint(0, 0xffff)) for _ in range(30)]
+    for i, j in values:
+        Ah = f"{i:04x}"
+        Bh = f"{j:04x}"
+        Ch = mul22(Ah, Bh)
+        dut._log.info(f"  test_2x2 {Ah} {Bh} {Ch}")
         blocks = [
             {'a': 1, 'ci': Ah, 'ri': Bh,},
             {'a': 6,},

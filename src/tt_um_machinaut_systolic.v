@@ -188,7 +188,7 @@ module pipe1 (
 endmodule
 module pipe2 (
     input wire [31:0] in, input wire save,
-    output wire [31:0] out, output wire saveout
+    output wire [39:0] out, output wire saveout
 );
     // Inputs
     wire [15:0] P; wire [15:0] C;
@@ -212,11 +212,12 @@ module pipe2 (
     // Sum
     wire Snan; wire Sinf; wire Szero; wire Ssub;
     wire Ssig;
-    wire [14:0] Sq; wire [13:0] Sqs; wire [4:0] Sexp; wire [4:0] Sexps;
-    wire Sqro; wire Sqrg; wire Sqrr; wire Sqrs;
-    wire [11:0] Sqr; wire [4:0] Sexpr;
-    wire [10:0] Sqf; wire [4:0] Sexpf;
-    wire [15:0] S;
+    wire [14:0] Sq; 
+    wire [4:0] Sexp; 
+    // wire Sqro; wire Sqrg; wire Sqrr; wire Sqrs;
+    // wire [11:0] Sqr; wire [4:0] Sexpr;
+    // wire [10:0] Sqf; wire [4:0] Sexpf;
+    // wire [15:0] S;
 
     // Unpack inputs
     assign P = in[31:16]; assign C = in[15:0];
@@ -230,8 +231,8 @@ module pipe2 (
     assign Cnan = Cexp1 & !Cman0; assign Cinf = Cexp1 & Cman0; assign Czero = Cexp0 & Cman0; assign Csub = Cexp0 & !Cman0;
     // Sum flags - initial values
     assign Snan = Pnan || Cnan || (Pinf && Cinf && (Psig != Csig));
-    // assign Sinf = (!Snan) && (Pinf || Cinf);
-    // assign Szero = (!Snan) && (!Sinf) && (Pzero && Czero);
+    assign Sinf = (!Snan) && (Pinf || Cinf);
+    assign Szero = (!Snan) && (!Sinf) && (Pzero && Czero);
 
     // Summands
     assign F = (P[14:0] > C[14:0]) ? P : C;
@@ -261,6 +262,32 @@ module pipe2 (
     assign Sq = (Fsig == Gsig) ? Fq + Gqs : Fq - Gqs;
     assign Sexp = Fexps;
     assign Ssig = Fsig;
+
+    // Bits: Snan=1 Sinf=1 Szero=1 Ssig=1 Sexp=5 Sq=15 C=16 = 40
+    assign out = {Snan, Sinf, Szero, Ssig, Sexp, Sq, C};
+    assign saveout = save;
+endmodule
+module pipe3 (
+    input wire [39:0] in, input wire save,
+    output wire [15:0] out, output wire saveout
+);
+    wire [15:0] C;
+    wire Sinfin; wire Szeroin;
+    wire Snan; wire Sinf; wire Szero;
+    wire Ssig;
+    wire [14:0] Sq; wire [13:0] Sqs; wire [4:0] Sexp; wire [4:0] Sexps;
+    wire Sqro; wire Sqrg; wire Sqrr; wire Sqrs;
+    wire [11:0] Sqr; wire [4:0] Sexpr;
+    wire [10:0] Sqf; wire [4:0] Sexpf;
+    wire [15:0] S;
+
+    assign C = in[15:0];
+    assign Sq = in[30:16];
+    assign Sexp = in[35:31];
+    assign Ssig = in[36];
+    assign Szeroin = in[37];
+    assign Sinfin = in[38];
+    assign Snan = in[39];
 
     // Normalize, shifting left
     assign Sqs = (Sq[14] == 1) ? {Sq[14:2], (|Sq[1:0])} :
@@ -297,7 +324,7 @@ module pipe2 (
         0;
     
     // assign Sinf = ((!Snan) && (Pinf || Cinf)) || (Sexps == 31);
-    assign Szero = ((!Snan) && (!Sinf) && (Pzero && Czero)) || (Sexps == 0);
+    assign Szero = (Szeroin) || (Sexps == 0);
     // Rounding
     assign Sqro = Sqs[3];  // Odd bit
     assign Sqrg = Sqs[2];  // Guard bit
@@ -307,7 +334,7 @@ module pipe2 (
     assign Sexpr = (Sqr[11] == 1) ? Sexps + 1 : Sexps;
     assign Sqf = (Sqr[11] == 1) ? Sqr[11:1] : Sqr[10:0];
     // Maybe overflow
-    assign Sinf = (((!Snan) && (Pinf || Cinf)) || (Sexps == 31)) || (Sexpr == 31);
+    assign Sinf = (Sinfin) || (Sexpr == 31);
 
     // Final sum value
     assign S =
@@ -316,15 +343,7 @@ module pipe2 (
         (Szero) ? {Ssig, 5'b00000, 10'b0000000000} :
         (Sqf[10]) ? {Ssig, Sexpr, Sqf[9:0]} :
                     {Ssig, 5'b00000, Sqf[9:0]};
-
-    assign out = save ? {16'h0000, S} : 0;
-    assign saveout = save;
-endmodule
-module pipe3 (
-    input wire [31:0] in, input wire save,
-    output wire [15:0] out, output wire saveout
-);
-    assign out = save ? in[15:0] : 0;
+    assign out = save ? S : 0;
     assign saveout = save;
 endmodule
 module tt_um_machinaut_systolic (
@@ -400,9 +419,9 @@ module tt_um_machinaut_systolic (
     wire        Pipe1Sw;  // Pipeline 1 output Save
     reg  [31:0] Pipe1s;  // Pipeline 1 state
     reg         Pipe1Ss;  // Pipeline 1 state Save
-    wire [31:0] Pipe2w;  // Pipeline 2 output
+    wire [39:0] Pipe2w;  // Pipeline 2 output
     wire        Pipe2Sw;  // Pipeline 2 output Save
-    reg  [31:0] Pipe2s;  // Pipeline 2 state
+    reg  [39:0] Pipe2s;  // Pipeline 2 state
     reg         Pipe2Ss;  // Pipeline 2 state Save
     wire [15:0] Pipe3w;  // Pipeline 3 output (to C)
     wire        Pipe3Sw;  // Pipeline 3 output Save
