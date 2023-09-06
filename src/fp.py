@@ -67,7 +67,7 @@ class Float:
         return cls.fromb(f"{int(h, 16):0{1 + cls.e_l + cls.m_l}b}")
 
     @classmethod
-    def fromf(cls, f, verbose=False):
+    def fromf(cls, f):
         assert isinstance(f, float), f"f={repr(f)}"
         sig = "1" if f < 0 else "0"
         if f != f:  # NaN
@@ -91,9 +91,6 @@ class Float:
             high = val + "1" + "0" * (size - i)
             low_diff = abs(f - cls.fromb(low).f)
             high_diff = abs(f - cls.fromb(high).f)
-            if verbose:
-                print(f"i={i} val={val} low={low}, high={high}")
-                print(f"low_diff={low_diff}, high_diff={high_diff}")
             if low_diff == high_diff:
                 val = val + ("0" if i == size else "1")
             elif (low_diff < high_diff) or (high_diff != high_diff):
@@ -109,6 +106,9 @@ class Float:
         man = "".join(random.choice("01") for _ in range(cls.m_l))
         # Normalize to get standard NaN / Zero
         return cls.fromf(cls(sig, exp, man).f)
+
+    def __str__(self):
+        return f"{self.__class__.__name__}({repr(self.sig)},{repr(self.exp)},{repr(self.man)})"
 
 
 @dataclass
@@ -148,6 +148,15 @@ class E4M3(Float):
     def fromb(cls, b):
         assert is_bin(b, 8), f"b={repr(b)}"
         return cls(b[0], b[1:5], b[5:])
+
+
+def fma(A, B, C=None, half=False):
+    assert isinstance(A, (E5M2, E4M3)), f"A={repr(A)}"
+    assert isinstance(B, (E5M2, E4M3)), f"B={repr(B)}"
+    C = FP16.fromf(0.0) if C is None else C
+    assert isinstance(C, FP16), f"C={repr(C)}"
+    cls = E5M2 if half else FP16
+    return cls.fromf(FP16.fromf(A.f * B.f).f + C.f)
 
 
 # Tests for floating point, only if run as main
@@ -240,3 +249,22 @@ if __name__ == "__main__":
             vals = [cls.rand() for _ in range(100)]
             hexs = [val.h for val in vals]
             assert len(set(hexs)) > 10, f"cls={cls.__name__} hexs={hexs}"
+
+    # Test FMA with random
+    for _ in range(10000):
+        A = random.choice([E5M2, E4M3]).rand()
+        B = random.choice([E5M2, E4M3]).rand()
+        P = fma(A, B)
+        C = FP16.rand() if random.choice([True, False]) else None
+        half = random.choice([True, False])
+        D = fma(A, B, C, half)
+        f = P.f if C is None else P.f + C.f
+        E = E5M2.fromf(f) if half else FP16.fromf(f)
+        if D != E:
+            print(f"A={A} Af={A.f}")
+            print(f"B={B} Bf={B.f}")
+            print(f"P={P} Pf={P.f}")
+            print(f"C={C} Cf={C.f if C else 0.}")
+            print(f"D={D} Df={D.f}")
+            print(f"E={E} Ef={E.f}")
+            assert False
