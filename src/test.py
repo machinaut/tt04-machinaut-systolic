@@ -294,6 +294,7 @@ async def test_Cshort(dut):
     # TODO: do actual numbers instead of NANs
     for _ in range(30):
         Ch = f"{random.randint(0, 2**64-1):016x}"
+        assert is_hex(Ch, 16), f"Ch={repr(Ch)}"
         C0 = FP16.fromh(Ch[0:4])
         C1 = FP16.fromh(Ch[4:8])
         C2 = FP16.fromh(Ch[8:12])
@@ -302,12 +303,12 @@ async def test_Cshort(dut):
         E1 = E5M2.fromf(C1.f)
         E2 = E5M2.fromf(C2.f)
         E3 = E5M2.fromf(C3.f)
-        dut._log.info(f"  test_2x2 {Ch} {E0.h} {E1.h} {E2.h} {E3.h}")
+        dut._log.info(f"  test_Cshort {Ch} {E0.h} {E1.h} {E2.h} {E3.h}")
         blocks = [
             {'a': 6, 'ci': C0.h, 'ri': C1.h,},
             {'a': 7, 'ci': C2.h, 'ri': C3.h, 'co': '0000', 'ro': '0000',},
             {'a': 5, 'co': '0000', 'ro': '0000',},
-            {'a': 0, 'co': E0.h + E1.h, 'ro': E2.h + E3.h,},
+            {'a': 0, 'co': E0.h + E2.h, 'ro': E1.h + E3.h,},
             {}
         ]
         await test_sequence(dut, blocks=blocks)

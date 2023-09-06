@@ -1,5 +1,8 @@
 `default_nettype none
 
+// TODO: check all the regs in gtkwave, and look for any fast-switching ones
+// TODO: just read the VCD file for these instead, somehow?
+
 // 1-bit 4-to-1 mux
 // TODO: use these in any case we switch on count
 // TODO: use case statement instead of ternary
@@ -54,9 +57,9 @@ module r16to8 (
     assign pre = {(exp > 0) ? (2'b01) : (2'b00), man[9:8]};
     assign inc = round ? pre + 1 : pre;
     // Overflow and outputs
-    assign out_exp = inc[3] ? exp + 1 : exp;
+    assign out_exp = (exp > 0) ? (inc[3] ? exp + 1 : exp) : (inc[2] ? 1 : 0);
     assign out_man = inc[3] ? inc[2:1] : inc[1:0];
-    assign out_sig = ((out_exp == 0) && (out_man == 0)) ? 0 : sig;
+    assign out_sig = ((out_exp == 0) && (out_man == 0)) ? 0 : sig;  // TODO simplify by &-reducing the input high bits
 
     assign out =   
         (nan) ? {1'b0, 5'b11111, 2'b11} :
@@ -512,6 +515,16 @@ module tt_um_machinaut_systolic (
         end
     endgenerate
 
+    wire [7:0] C0r;
+    wire [7:0] C1r;
+    wire [7:0] C2r;
+    wire [7:0] C3r;
+
+    r16to8 r0(.in(C0), .out(C0r));
+    r16to8 r1(.in(Pipe3Sw ? Pipe3w : C1), .out(C1r));
+    r16to8 r2(.in(C2), .out(C2r));
+    r16to8 r3(.in(C3), .out(C3r));
+
     // Output storage buffers, written at posedge clk and read at negedge clk
     always @(posedge clk) begin
         if (!rst_n) begin
@@ -526,9 +539,10 @@ module tt_um_machinaut_systolic (
                     col_buf_out <= C0;
                     row_buf_out <= Pipe3Sw ? Pipe3w : C1;
                 end else if ((col_ctrl_in_full[3:2] == 2'b10) && (row_ctrl_in_full[3:2] == 2'b00)) begin
-                    // TODO: round these
-                    col_buf_out <= {C0[15:8], C2[15:8]};
-                    row_buf_out <= {(Pipe3Sw ? Pipe3w[15:8] : C1[15:8]), C3[15:8]};
+                    // TODO: Use just two rounding units to just-in-time round the second half of the output
+                    // In the next cycle
+                    col_buf_out <= {C0r, C2r};
+                    row_buf_out <= {C1r, C3r};
                 end else if ((col_ctrl_in_full[3:2] == 2'b11) && (row_ctrl_in_full[3:2] == 2'b00)) begin
                     col_buf_out <= C2;
                     row_buf_out <= C3;

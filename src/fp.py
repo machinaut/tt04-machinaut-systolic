@@ -73,7 +73,7 @@ class Float:
         if f != f:  # NaN
             return cls("0", "1" * cls.e_l, "1" * cls.m_l)
         if cls.e_l == 5:  # Normal case
-            if abs(f) > cls.MAX:  # Inf
+            if abs(f) >= cls.MAX + 2 ** (15 - cls.m_l - 1):  # Inf
                 return cls(sig, "1" * cls.e_l, "0" * cls.m_l)
         else:  # Special case for E4M3
             if abs(f) >= cls.MAX:  # Saturate to MAX
@@ -175,6 +175,10 @@ if __name__ == "__main__":
     assert E4M3.fromh("7e").f == E4M3.MAX
     assert E4M3.fromh("01").f == E4M3.MIN
 
+    # Rounding near infinity is weird
+    assert FP16.fromf(65504. + 16) == FP16.fromf(float("inf"))
+    assert FP16.fromf(65504. + 15) == FP16.fromf(65504.)
+
     suffixes = ["00", "01", "7e", "7f", "80", "81", "fe", "ff"]
     val8s = [f"{i:02x}" for i in range(256)]
     val16s = [i + j for (i, j) in product(val8s, suffixes)]
@@ -243,8 +247,10 @@ if __name__ == "__main__":
         assert cls.fromf(cls.MIN / 2 - 1e-10).f == 0
         assert cls.fromf(-cls.MIN / 2 + 1e-10).f == 0
         # Assert epsilon more than max rounds up to inf
-        assert cls.fromf(cls.MAX + 1e-10) == cls.fromf(float("inf"))
-        assert cls.fromf(-cls.MAX - 1e-10) == cls.fromf(float("-inf"))
+        assert cls.fromf(cls.MAX + 2 ** (15 - cls.m_l - 1)) == cls.fromf(float("inf"))
+        assert cls.fromf(cls.MAX + 2 ** (15 - cls.m_l - 1) - 1e-10) == cls.fromf(cls.MAX)
+        assert cls.fromf(-cls.MAX - 2 ** (15 - cls.m_l - 1)) == cls.fromf(float("-inf"))
+        assert cls.fromf(-cls.MAX - 2 ** (15 - cls.m_l - 1) + 1e-10) == cls.fromf(-cls.MAX)
         # Try drawing 100 random values, check that some are different
         for _ in range(100):
             vals = [cls.rand() for _ in range(100)]
