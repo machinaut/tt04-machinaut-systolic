@@ -25,49 +25,6 @@ module mux4b4t1 (
     assign out = (addr == 0) ? in[15:12] : (addr == 1) ? in[11:8] : (addr == 2) ? in[7:4] : in[3:0];
 endmodule
 
-// Round FP16 to E5M2, used for faster C readout
-module r16to8 (
-    input wire [15:0] in,
-    output wire [7:0] out
-);
-    // inputs
-    wire sig; wire [4:0] exp; wire [9:0] man;
-    // flags
-    wire nan; wire inf;
-    // conditions
-    wire odd; wire half; wire rem; wire round;
-    // round
-    wire [3:0] pre; wire [3:0] inc;
-    // outputs
-    wire out_sig; wire [4:0] out_exp; wire [1:0] out_man;
-
-    // Unpack inputs
-    assign sig = in[15];
-    assign exp = in[14:10];
-    assign man = in[9:0];
-    // unpack flags
-    assign nan = (exp == 5'b11111) && (man != 0);
-    assign inf = (exp == 5'b11111) && (man == 0);
-    // Conditions
-    assign odd = in[8];
-    assign half = in[7];
-    assign rem = (|in[6:0]);
-    assign round = (half) && (rem || odd);
-    // Round
-    assign pre = {(exp > 0) ? (2'b01) : (2'b00), man[9:8]};
-    assign inc = round ? pre + 1 : pre;
-    // Overflow and outputs
-    assign out_exp = (exp > 0) ? (inc[3] ? exp + 1 : exp) : (inc[2] ? 1 : 0);
-    assign out_man = inc[3] ? inc[2:1] : inc[1:0];
-    assign out_sig = ((out_exp == 0) && (out_man == 0)) ? 0 : sig;  // TODO simplify by &-reducing the input high bits
-
-    assign out =   
-        (nan) ? {1'b0, 5'b11111, 2'b11} :
-        (inf || (out_exp == 31)) ? {sig, 5'b11111, 2'b00} :
-        {out_sig, out_exp, out_man};
-
-endmodule
-
 // Addresses for Columns and Rows
 // Address is encoded as the top two bits of the _ctrl_ signal
 // CC - Column Control Bits
@@ -515,12 +472,6 @@ module tt_um_machinaut_systolic (
         end
     endgenerate
 
-    wire [7:0] C02r;
-    wire [7:0] C13r;
-
-    r16to8 r02(.in((count[0] == 1) ? C0 : C2), .out(C02r));
-    r16to8 r13(.in((count[0] == 1) ? (Pipe3Sw ? Pipe3w : C1) : C3), .out(C13r));
-
     // Output storage buffers, written at posedge clk and read at negedge clk
     always @(posedge clk) begin
         if (!rst_n) begin
@@ -534,9 +485,6 @@ module tt_um_machinaut_systolic (
                 if ((col_ctrl_in_full[3:2] == 2'b10) && (row_ctrl_in_full[3:2] == 2'b01)) begin
                     col_buf_out <= C0;
                     row_buf_out <= Pipe3Sw ? Pipe3w : C1;
-                end else if ((col_ctrl_in_full[3:2] == 2'b10) && (row_ctrl_in_full[3:2] == 2'b00)) begin
-                    col_buf_out <= {C02r, col_in_full[7:0]};
-                    row_buf_out <= {C13r, row_in_full[7:0]};
                 end else if ((col_ctrl_in_full[3:2] == 2'b11) && (row_ctrl_in_full[3:2] == 2'b00)) begin
                     col_buf_out <= C2;
                     row_buf_out <= C3;
@@ -546,11 +494,6 @@ module tt_um_machinaut_systolic (
                 end
                 col_ctrl_buf_out <= col_ctrl_in_full;
                 row_ctrl_buf_out <= row_ctrl_in_full;
-            end else if (count == 0) begin
-                if ((col_ctrl_buf_out[3:2] == 2'b10) && (row_ctrl_buf_out[3:2] == 2'b00)) begin
-                    col_buf_out[7:0] <= {C02r};
-                    row_buf_out[7:0] <= {C13r};
-                end
             end
         end
     end
@@ -595,10 +538,6 @@ module tt_um_machinaut_systolic (
                 if ((col_ctrl_in_full[3:2] == 2'b10) && (row_ctrl_in_full[3:2] == 2'b01)) begin
                     C0 <= col_in_full;
                     C1 <= row_in_full;
-                end else if ((col_ctrl_in_full[3:2] == 2'b10) && (row_ctrl_in_full[3:2] == 2'b00)) begin
-                    C0 <= {col_in_full[15:8], 8'b00000000};
-                    C1 <= {row_in_full[15:8], 8'b00000000};
-                    // temporarily stash the other two values in the output buffer
                 end else if ((col_ctrl_in_full[3:2] == 2'b11) && (row_ctrl_in_full[3:2] == 2'b00)) begin
                     C2 <= col_in_full;
                     C3 <= row_in_full;
@@ -611,12 +550,7 @@ module tt_um_machinaut_systolic (
                     end
                 end
             end else if (count == 0) begin
-                if ((col_ctrl_buf_out[3:2] == 2'b10) && (row_ctrl_buf_out[3:2] == 2'b00)) begin
-                    // Temporarily stash these in the output buffer
-                    // then read back next cycle
-                    C2 <= {col_buf_out[7:0], 8'b00000000};
-                    C3 <= {row_buf_out[7:0], 8'b00000000};
-                end else if (Pipe3Sw) begin
+                if (Pipe3Sw) begin
                     C2 <= Pipe3w;
                 end
             end else if (count == 1) begin

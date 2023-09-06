@@ -125,7 +125,6 @@ ADDR = {
     2: {'col_ctrl': '01', 'row_ctrl': '10'},  # A-E4 B-E5
     3: {'col_ctrl': '00', 'row_ctrl': '11'},  # A-E5 B-E4
     4: {'col_ctrl': '01', 'row_ctrl': '11'},  # A-E4 B-E4
-    5: {'col_ctrl': '10', 'row_ctrl': '00'},  # C-E5
     6: {'col_ctrl': '10', 'row_ctrl': '01'},  # C-Low
     7: {'col_ctrl': '11', 'row_ctrl': '00'},  # C-High
 }
@@ -281,88 +280,6 @@ async def test_ABC(dut):
             {'a': 6,},
             {'a': 7, 'co': Ch[0:4], 'ro': Ch[4:8],},
             {'a': 0, 'co': Ch[8:12], 'ro': Ch[12:16],},
-            {},
-        ]
-        await test_sequence(dut, blocks=blocks)
-
-
-@cocotb.test()
-async def test_truncate(dut):
-    dut._log.info("start test_truncate")
-    await cocotb.start_soon(reset(dut))
-    for _ in range(30):
-        Ch = f"{random.randint(0, 2**64-1):016x}"
-        # Ch = '7fff7fff7fff7fff'
-        assert is_hex(Ch, 16), f"Ch={repr(Ch)}"
-        C0 = FP16.fromh(Ch[0:4])
-        C1 = FP16.fromh(Ch[4:8])
-        C2 = FP16.fromh(Ch[8:12])
-        C3 = FP16.fromh(Ch[12:16])
-        E0 = E5M2.fromf(C0.f)
-        E1 = E5M2.fromf(C1.f)
-        E2 = E5M2.fromf(C2.f)
-        E3 = E5M2.fromf(C3.f)
-        dut._log.info(f"  test_truncate {Ch} {E0.h} {E1.h} {E2.h} {E3.h}")
-        blocks = [
-            {'a': 6, 'ci': C0.h, 'ri': C1.h,},
-            {'a': 7, 'ci': C2.h, 'ri': C3.h, 'co': '0000', 'ro': '0000',},
-            {'a': 5, 'co': '0000', 'ro': '0000',},
-            {'a': 0, 'co': E0.h + E2.h, 'ro': E1.h + E3.h,},
-            {}
-        ]
-        await test_sequence(dut, blocks=blocks)
-
-
-@cocotb.test()
-async def test_extend(dut):
-    dut._log.info("start test_extend")
-    await cocotb.start_soon(reset(dut))
-    # TODO: this doesn't actually do things like translate -0 or NaNs
-    for _ in range(30):
-        Eh = f"{random.randint(0, 2**32-1):08x}"
-        E0 = Eh[0:2]
-        E1 = Eh[2:4]
-        E2 = Eh[4:6]
-        E3 = Eh[6:8]
-        C0 = E0 + '00'
-        C1 = E1 + '00'
-        C2 = E2 + '00'
-        C3 = E3 + '00'
-        assert is_hex(Eh, 8), f"Eh={repr(Eh)}"
-        dut._log.info(f"  test_extend {Eh}")
-        blocks = [
-            {'a': 5, 'ci': E0 + E2, 'ri': E1 + E3,},
-            {'a': 6, 'co': '0000', 'ro': '0000',},
-            {'a': 7, 'co': C0, 'ro': C1,},
-            {'a': 0, 'co': C2, 'ro': C3,},
-            {}
-        ]
-        await test_sequence(dut, blocks=blocks)
-
-
-@cocotb.test()
-async def test_ABChalf(dut):
-    dut._log.info("start test_ABChalf")
-    await cocotb.start_soon(reset(dut))
-
-    # TODO: Do E4M3 format combinations
-    # values = [(random.randint(0, 0xffff), random.randint(0, 0xffff)) for _ in range(30)]
-    values = [(0, 0)]
-    for i, j in values:
-        # Ah = f"{i:04x}"
-        # Bh = f"{j:04x}"
-        Ah = '7f7f'
-        Bh = '0000'
-        Ch = mul22(Ah, Bh, half=True)
-        C0 = Ch[0:2]
-        C1 = Ch[2:4]
-        C2 = Ch[4:6]
-        C3 = Ch[6:8]
-        dut._log.info(f"  test_ABChalf {Ah} {Bh} {Ch}")
-        blocks = [
-            {'a': 1, 'ci': Ah, 'ri': Bh,},
-            {'a': 5,},
-            {'a': 0, 'co': C0 + C2, 'ro': C1 + C3,},
             {},
         ]
         await test_sequence(dut, blocks=blocks)
