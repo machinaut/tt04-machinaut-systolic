@@ -443,18 +443,14 @@ module tt_um_machinaut_systolic (
             row_ctrl_buf_out <= 0;
         end else begin
             if (boundary) begin
-                if (col_ctrl_in_full[3:2] == 2) begin
+                if ((col_ctrl_in_full[3:2] == 2'b10) && (row_ctrl_in_full[3:2] == 2'b01)) begin
                     col_buf_out <= C[0];
-                end else if (col_ctrl_in_full[3:2] == 3) begin
-                    col_buf_out <= C[2];
-                end else begin
-                    col_buf_out <= col_in_full;
-                end
-                if (row_ctrl_in_full[3:2] == 2) begin
                     row_buf_out <= C[1];
-                end else if (row_ctrl_in_full[3:2] == 3) begin
+                end else if ((col_ctrl_in_full[3:2] == 2'b11) && (row_ctrl_in_full[3:2] == 2'b00)) begin
+                    col_buf_out <= C[2];
                     row_buf_out <= C[3];
                 end else begin
+                    col_buf_out <= col_in_full;
                     row_buf_out <= row_in_full;
                 end
                 col_ctrl_buf_out <= col_ctrl_in_full;
@@ -499,19 +495,15 @@ module tt_um_machinaut_systolic (
             C[0] <= 0; C[1] <= 0; C[2] <= 0; C[3] <= 0;
         end else begin
             if (count == 3) begin
-                if (col_ctrl_in_full[3:2] == 2) begin
+                if ((col_ctrl_in_full[3:2] == 2'b10) && (row_ctrl_in_full[3:2] == 2'b01)) begin
                     C[0] <= col_in_full;
-                end
-                if (col_ctrl_in_full[3:2] == 3) begin
-                    C[2] <= col_in_full;
-                end else if (Pipe3Sw) begin
-                    C[2] <= Pipe3w;
-                end
-                if (row_ctrl_in_full[3:2] == 2) begin
                     C[1] <= row_in_full;
                 end
-                if (row_ctrl_in_full[3:2] == 3) begin
+                if ((col_ctrl_in_full[3:2] == 2'b11) && (row_ctrl_in_full[3:2] == 2'b00)) begin
+                    C[2] <= col_in_full;
                     C[3] <= row_in_full;
+                end else if (Pipe3Sw) begin
+                    C[2] <= Pipe3w;
                 end
             end else if (count == 0) begin
                 if (Pipe3Sw) begin

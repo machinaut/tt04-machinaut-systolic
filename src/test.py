@@ -137,6 +137,7 @@ async def test_sequence(dut, *, blocks):
     for i in range(len(blocks)):
         prev = blocks[i - 1] if i > 0 else {}
         block = blocks[i]
+        dut._log.info(f"  test_sequence[{i}] {block}")
         params = {}
         params.update(ADDR_IN[block.get('a', 0)])
         params.update(ADDR_OUT[prev.get('a', 0)])
@@ -172,37 +173,37 @@ async def test_pass(dut):
     await test_sequence(dut, blocks=blocks)
 
 
-@cocotb.test()
-async def test_AB(dut):
-    dut._log.info("start test_AB")
-    await cocotb.start_soon(reset(dut))
+# @cocotb.test()
+# async def test_AB(dut):
+#     dut._log.info("start test_AB")
+#     await cocotb.start_soon(reset(dut))
 
-    await test_block(
-        dut,
-        col_in="1234",
-        row_in="5678",
-        col_ctrl_in="0100",
-        row_ctrl_in="0100",
-    )
-    await test_block(
-        dut,
-        col_out="1234",
-        row_out="5678",
-        col_ctrl_out="0100",
-        row_ctrl_out="0100",
-        col_in="abef",
-        row_in="face",
-        col_ctrl_in="0100",
-        row_ctrl_in="0100",
-    )
-    await test_block(
-        dut,
-        col_out="abef",
-        row_out="face",
-        col_ctrl_out="0100",
-        row_ctrl_out="0100",
-    )
-    await test_block(dut)
+#     await test_block(
+#         dut,
+#         col_in="1234",
+#         row_in="5678",
+#         col_ctrl_in="0100",
+#         row_ctrl_in="0100",
+#     )
+#     await test_block(
+#         dut,
+#         col_out="1234",
+#         row_out="5678",
+#         col_ctrl_out="0100",
+#         row_ctrl_out="0100",
+#         col_in="abef",
+#         row_in="face",
+#         col_ctrl_in="0100",
+#         row_ctrl_in="0100",
+#     )
+#     await test_block(
+#         dut,
+#         col_out="abef",
+#         row_out="face",
+#         col_ctrl_out="0100",
+#         row_ctrl_out="0100",
+#     )
+#     await test_block(dut)
 
 
 @cocotb.test()
@@ -210,83 +211,18 @@ async def test_shift(dut):
     dut._log.info("start test_shift")
     await cocotb.start_soon(reset(dut))
 
-    # Set C0/C1
-    await test_block(
-        dut,
-        col_in="1234",
-        row_in="5678",
-        col_ctrl_in="1010",
-        row_ctrl_in="1001",
-    )
-    # Pass block - shifted out old (0) C values, and just passing through data
-    await test_block(
-        dut,
-        col_ctrl_out="1010",
-        row_ctrl_out="1001",
-        col_in="aaaa",
-        row_in="bbbb",
-    )
-    # Read/Set C0/C1
-    await test_block(
-        dut,
-        col_out="aaaa",
-        row_out="bbbb",
-        col_in="babe",
-        row_in="face",
-        col_ctrl_in="1011",
-        row_ctrl_in="1000",
-    )
-    # Two pass blocks
-    await test_block(
-        dut,
-        col_out="1234",
-        row_out="5678",
-        col_ctrl_out="1011",
-        row_ctrl_out="1000",
-        col_in="cccc",
-        row_in="dddd",
-    )
-    await test_block(
-        dut,
-        col_out="cccc",
-        row_out="dddd",
-        col_in="eeee",
-        row_in="ffff",
-    )
-    # Read/Set C0/C1
-    await test_block(
-        dut,
-        col_out="eeee",
-        row_out="ffff",
-        col_in="f00d",
-        row_in="c0a7",
-        col_ctrl_in="1011",
-        row_ctrl_in="1000",
-    )
-    # Read/Clear C0/C1
-    await test_block(
-        dut,
-        col_out="babe",
-        row_out="face",
-        col_ctrl_out="1011",
-        row_ctrl_out="1000",
-        col_ctrl_in="1000",
-        row_ctrl_in="1000",
-    )
-    await test_block(
-        dut,
-        col_out="f00d",
-        row_out="c0a7",
-        col_ctrl_out="1000",
-        row_ctrl_out="1000",
-        col_ctrl_in="1000",
-        row_ctrl_in="1000",
-    )
-    await test_block(
-        dut,
-        col_ctrl_out="1000",
-        row_ctrl_out="1000",
-    )
+    blocks = [
+        {'a': 6, 'ci': '1234', 'ri': '5678',},
+        {'a': 0, 'ci': 'aaaa', 'ri': 'bbbb', 'co': '0000', 'ro': '0000',},
+        {'a': 6, 'ci': 'babe', 'ri': 'face',},
+        {'a': 0, 'ci': 'cccc', 'ri': 'dddd', 'co': '1234', 'ro': '5678',},
+        {'a': 0, 'ci': 'eeee', 'ri': 'ffff',},
+        {'a': 6, 'ci': 'f00d', 'ri': 'c0a7',},
+        {'a': 6, 'co': 'babe', 'ro': 'face',},
+        {'a': 6, 'co': 'f00d', 'ro': 'c0a7',},
+        {}
+    ]
+    await test_sequence(dut, blocks=blocks)
 
 
 @cocotb.test()
@@ -294,49 +230,15 @@ async def test_shift2(dut):
     dut._log.info("start test_shift2")
     await cocotb.start_soon(reset(dut))
 
-    # Set C2/C3
-    await test_block(
-        dut,
-        col_in="1234",
-        row_in="5678",
-        col_ctrl_in="1100",
-        row_ctrl_in="1100",
-    )
-    # Pass block - shifted out old (0) C values, and just passing through data
-    await test_block(
-        dut,
-        col_ctrl_out="1100",
-        row_ctrl_out="1100",
-        col_in="aaaa",
-        row_in="bbbb",
-    )
-    # Read/Set C0/C1
-    await test_block(
-        dut,
-        col_out="aaaa",
-        row_out="bbbb",
-        col_in="babe",
-        row_in="face",
-        col_ctrl_in="1100",
-        row_ctrl_in="1100",
-    )
-    await test_block(
-        dut,
-        col_out="1234",
-        row_out="5678",
-        col_ctrl_out="1100",
-        row_ctrl_out="1100",
-        col_ctrl_in="1100",
-        row_ctrl_in="1100",
-    )
-    await test_block(
-        dut,
-        col_out="babe",
-        row_out="face",
-        col_ctrl_out="1100",
-        row_ctrl_out="1100",
-    )
-    await test_block(dut)
+    blocks = [
+        {'a': 7, 'ci': '1234', 'ri': '5678',},
+        {'a': 0, 'ci': 'aaaa', 'ri': 'bbbb', 'co': '0000', 'ro': '0000',},
+        {'a': 7, 'ci': 'babe', 'ri': 'face',},
+        {'a': 7, 'co': '1234', 'ro': '5678',},
+        {'a': 0, 'co': 'babe', 'ro': 'face',},
+        {}
+    ]
+    await test_sequence(dut, blocks=blocks)
 
 
 @cocotb.test()
@@ -344,100 +246,20 @@ async def test_C(dut):
     dut._log.info("start test_C")
     await cocotb.start_soon(reset(dut))
 
-    # Set C0/C1
-    await test_block(
-        dut,
-        col_in="c0c0",
-        row_in="c1c1",
-        col_ctrl_in="1000",
-        row_ctrl_in="1000",
-    )
-    # Set C2/C3
-    await test_block(
-        dut,
-        col_ctrl_out="1000",
-        row_ctrl_out="1000",
-        col_in="c2c2",
-        row_in="c3c3",
-        col_ctrl_in="1100",
-        row_ctrl_in="1100",
-    )
-    # Set C0/C1
-    await test_block(
-        dut,
-        col_ctrl_out="1100",
-        row_ctrl_out="1100",
-        col_in="3213",
-        row_in="7654",
-        col_ctrl_in="1000",
-        row_ctrl_in="1000",
-    )
-    # Set C2/C3
-    await test_block(
-        dut,
-        col_out="c0c0",
-        row_out="c1c1",
-        col_ctrl_out="1000",
-        row_ctrl_out="1000",
-        col_in="cbac",
-        row_in="fede",
-        col_ctrl_in="1100",
-        row_ctrl_in="1100",
-    )
-    # Pass 1
-    await test_block(
-        dut,
-        col_out="c2c2",
-        row_out="c3c3",
-        col_ctrl_out="1100",
-        row_ctrl_out="1100",
-        col_in="eeee",
-        row_in="ffff",
-    )
-    # Pass 2
-    await test_block(
-        dut,
-        col_out="eeee",
-        row_out="ffff",
-        col_in="aaaa",
-        row_in="bbbb",
-    )
-    # Pass 3
-    await test_block(
-        dut,
-        col_out="aaaa",
-        row_out="bbbb",
-        col_in="dddd",
-        row_in="cccc",
-    )
-    # Clear C0/C1
-    await test_block(
-        dut,
-        col_out="dddd",
-        row_out="cccc",
-        col_ctrl_in="1000",
-        row_ctrl_in="1000",
-    )
-    # Clear C2/C3
-    await test_block(
-        dut,
-        col_out="3213",
-        row_out="7654",
-        col_ctrl_out="1000",
-        row_ctrl_out="1000",
-        col_ctrl_in="1100",
-        row_ctrl_in="1100",
-    )
-    # Cleared
-    await test_block(
-        dut,
-        col_out="cbac",
-        row_out="fede",
-        col_ctrl_out="1100",
-        row_ctrl_out="1100",
-    )
-    # Zero
-    await test_block(dut)
+    blocks = [
+        {'a': 6, 'ci': 'c0c0', 'ri': 'c1c1',},
+        {'a': 7, 'ci': 'c2c2', 'ri': 'c3c3', 'co': '0000', 'ro': '0000',},
+        {'a': 6, 'ci': '3213', 'ri': '7654', 'co': '0000', 'ro': '0000',},
+        {'a': 7, 'ci': 'cbac', 'ri': 'fede', 'co': 'c0c0', 'ro': 'c1c1',},
+        {'a': 0, 'ci': 'eeee', 'ri': 'ffff', 'co': 'c2c2', 'ro': 'c3c3',},
+        {'a': 0, 'ci': 'aaaa', 'ri': 'bbbb',},
+        {'a': 0, 'ci': 'dddd', 'ri': 'cccc',},
+        {'a': 6,},
+        {'a': 7, 'co': '3213', 'ro': '7654',},
+        {'a': 0, 'co': 'cbac', 'ro': 'fede',},
+        {}
+    ]
+    await test_sequence(dut, blocks=blocks)
 
 
 def e5mul(A, B):
