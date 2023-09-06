@@ -288,8 +288,8 @@ async def test_2x2(dut):
 
 
 @cocotb.test()
-async def test_Cshort(dut):
-    dut._log.info("start test_Cshort")
+async def test_truncate(dut):
+    dut._log.info("start test_truncate")
     await cocotb.start_soon(reset(dut))
     for _ in range(30):
         Ch = f"{random.randint(0, 2**64-1):016x}"
@@ -303,12 +303,39 @@ async def test_Cshort(dut):
         E1 = E5M2.fromf(C1.f)
         E2 = E5M2.fromf(C2.f)
         E3 = E5M2.fromf(C3.f)
-        dut._log.info(f"  test_Cshort {Ch} {E0.h} {E1.h} {E2.h} {E3.h}")
+        dut._log.info(f"  test_truncate {Ch} {E0.h} {E1.h} {E2.h} {E3.h}")
         blocks = [
             {'a': 6, 'ci': C0.h, 'ri': C1.h,},
             {'a': 7, 'ci': C2.h, 'ri': C3.h, 'co': '0000', 'ro': '0000',},
             {'a': 5, 'co': '0000', 'ro': '0000',},
             {'a': 0, 'co': E0.h + E2.h, 'ro': E1.h + E3.h,},
+            {}
+        ]
+        await test_sequence(dut, blocks=blocks)
+
+
+@cocotb.test()
+async def test_extend(dut):
+    dut._log.info("start test_extend")
+    await cocotb.start_soon(reset(dut))
+    # TODO: this doesn't actually do things like translate -0 or NaNs
+    for _ in range(30):
+        Eh = f"{random.randint(0, 2**32-1):08x}"
+        E0 = Eh[0:2]
+        E1 = Eh[2:4]
+        E2 = Eh[4:6]
+        E3 = Eh[6:8]
+        C0 = E0 + '00'
+        C1 = E1 + '00'
+        C2 = E2 + '00'
+        C3 = E3 + '00'
+        assert is_hex(Eh, 8), f"Eh={repr(Eh)}"
+        dut._log.info(f"  test_extend {Eh}")
+        blocks = [
+            {'a': 5, 'ci': E0 + E2, 'ri': E1 + E3,},
+            {'a': 6, 'co': '0000', 'ro': '0000',},
+            {'a': 7, 'co': C0, 'ro': C1,},
+            {'a': 0, 'co': C2, 'ro': C3,},
             {}
         ]
         await test_sequence(dut, blocks=blocks)
