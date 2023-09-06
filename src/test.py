@@ -283,10 +283,10 @@ async def test_1x1(dut):
     # values = list(product(range(256), range(256)))
     values = [(random.randint(0, 255), random.randint(0, 255)) for _ in range(100)]
     for i, j in values:
-        Ah = f"{i:04x}"
-        Bh = f"{j:04x}"
+        Ah = f"{i:02x}00" if random.random() < 0.5 else f"00{i:02x}"
+        Bh = f"{j:02x}00" if random.random() < 0.5 else f"00{j:02x}"
         Ch = mul22(Ah, Bh)
-        dut._log.info(f"  test_1x1[{i},{j}] {Ah} {Bh} {Ch}")
+        dut._log.info(f"  test_1x1 {Ah} {Bh} {Ch}")
         blocks = [
             {'a': 1, 'ci': Ah, 'ri': Bh,},
             {'a': 6,},
