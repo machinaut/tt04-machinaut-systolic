@@ -156,17 +156,19 @@ async def test_zero(dut):
     await test_sequence(dut, blocks=[{}])
 
 
-# Test passing through data
+# Test passing through random data
 @cocotb.test()
 async def test_pass(dut):
     dut._log.info("start test_pass")
     await cocotb.start_soon(reset(dut))
 
-    blocks = [
-        {'ci': '1234', 'ri': '5678'},
-        {'ci': 'abcd', 'ri': 'ef01'},
-        {}
-    ]
+    blocks = []
+    for _ in range(30):
+        ci = f"{random.randint(0, 0xffff):04x}"
+        ri = f"{random.randint(0, 0xffff):04x}"
+        blocks.append({'ci': ci, 'ri': ri})
+    blocks.append({})
+
     await test_sequence(dut, blocks=blocks)
 
 

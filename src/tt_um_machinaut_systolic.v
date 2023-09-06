@@ -22,24 +22,27 @@ endmodule
 // Address is encoded as the top two bits of the _ctrl_ signal
 // CC - Column Control Bits
 // RC - Row Control Bits
-// CC0 RC0 CC1 RC1 | Address
+// CC0 CC1 RC0 RC1 | Address
 // ----------------|--------
 // 0   0   0   0   | passthrough (default)
-// 0   1   X   Y   | AB (X sets A datatype, Y sets B datatype)
+// 0   X   1   Y   | AB (X sets A datatype, Y sets B datatype)
 // 1   0   0   0   | C Short (read in/out E5 format)
-// 1   0   1   0   | C Low (C0, C1 in full FP16)
-// 1   0   0   1   | C High (C2, C3 in full FP16)
+// 1   0   0   1   | C Low (C0, C1 in full FP16)
+// 1   1   0   0   | C High (C2, C3 in full FP16)
 
 // Pipeline modules
 // Input multiplexer to pick what's going into the first pipeline stage this clock
 module pipeIn (
     input wire [1:0] cnt,  // state counter
     input wire [15:0] ci, input wire [15:0] co,  // column in/out
+    input wire [3:0] cci, input wire [3:0] cco,  // column control in/out
     input wire [15:0] ri, input wire [15:0] ro,  // row in/out
+    input wire [3:0] rci, input wire [3:0] rco,  // row control in/out
     // accumulator state
     input wire [15:0] C0, input wire [15:0] C1, input wire [15:0] C2, input wire [15:0] C3,
     // these will go into pipeline 0 this clock
-    output wire [7:0] A,  output wire [7:0] B, output wire [15:0] C
+    output wire [7:0] A,  output wire [7:0] B, output wire [15:0] C,
+    output wire Ae, output wire Be, output wire save
 );
     // ci/co are A0 (15:8) and A1 (7:0)
     // ri/ro are B0 (15:8) and B1 (7:0)
@@ -52,13 +55,17 @@ module pipeIn (
     // If state is 3, read A1/B0 from inputs and C1 from accumulator
     // If state is 0, read A0/B1 from outputs and C2 from accumulator
     // If state is 1, read A1/B1 from outputs and C3 from accumulator
-    assign A = (cnt == 2) ? A0i : (cnt == 3) ? A1i : (cnt == 0) ? A0o : A1o;
-    assign B = (cnt == 2) ? B0i : (cnt == 3) ? B0i : (cnt == 0) ? B1o : B1o;
-    assign C = (cnt == 2) ? C0 : (cnt == 3) ? C1 : (cnt == 0) ? C2 : C3;
+    assign Ae   = ((cnt == 2) || (cnt == 3)) ? cci[2] : cco[2];
+    assign Be   = ((cnt == 2) || (cnt == 3)) ? rci[2] : rco[2];
+    assign save = ((cnt == 2) || (cnt == 3)) ? ((cci[3] == 0) && (rci[3] == 1)) : ((cco[3] == 0) && (rco[3] == 1));
+    assign A = save ? 0 : (cnt == 2) ? A0i : (cnt == 3) ? A1i : (cnt == 0) ? A0o : A1o;
+    assign B = save ? 0 : (cnt == 2) ? B0i : (cnt == 3) ? B0i : (cnt == 0) ? B1o : B1o;
+    assign C = save ? 0 : (cnt == 2) ? C0 : (cnt == 3) ? C1 : (cnt == 0) ? C2 : C3;
 endmodule
 module pipe0 (
     input  wire [7:0] A, input  wire [7:0] B, input  wire [15:0] C,
-    output wire [34:0] out
+    input wire Ae, input wire Be, input wire save,
+    output wire [34:0] out, output wire saveout
 );
     // Inputs
     wire Asig; wire [4:0] Aexp; wire [1:0] Aman;
@@ -102,12 +109,12 @@ module pipe0 (
     assign Psexp = Aexp + Bexp + ((Asub || Bsub) ? -14 : -15);
     assign Pq = Mq * Nq;
 
-    assign out = {Pnan, Pinf, Pzero, Psig, Psexp, Pq, C};
-
+    assign out = save ? 0 : {Pnan, Pinf, Pzero, Psig, Psexp, Pq, C};
+    assign saveout = save;
 endmodule
 module pipe1 (
-    input wire [34:0] in,
-    output wire [31:0] out
+    input wire [34:0] in, input wire save,
+    output wire [31:0] out, output wire saveout
 );
 
     // Inputs
@@ -176,11 +183,12 @@ module pipe1 (
         (Pqr[10]) ? {Psig, Pexpf, Pqr[9:0]} :
                     {Psig, 5'b00000, Pqr[9:0]};
     // Output
-    assign out = {P, C};
+    assign out = save ? 0 : {P, C};
+    assign saveout = save;
 endmodule
 module pipe2 (
-    input wire [31:0] in,
-    output wire [15:0] out
+    input wire [31:0] in, input wire save,
+    output wire [31:0] out, output wire saveout
 );
     // Inputs
     wire [15:0] P; wire [15:0] C;
@@ -309,13 +317,15 @@ module pipe2 (
         (Sqf[10]) ? {Ssig, Sexpr, Sqf[9:0]} :
                     {Ssig, 5'b00000, Sqf[9:0]};
 
-    assign out = S;
+    assign out = save ? 0 : {16'h0000, S};
+    assign saveout = save;
 endmodule
 module pipe3 (
-    input wire [15:0] in,
-    output wire [15:0] out
+    input wire [31:0] in, input wire save,
+    output wire [15:0] out, output wire saveout
 );
-    assign out = in;
+    assign out = save ? 0 : in[15:0];
+    assign saveout = save;
 endmodule
 module tt_um_machinaut_systolic (
     input  wire [7:0] ui_in,    // Dedicated inputs - connected to the input switches
@@ -376,19 +386,23 @@ module tt_um_machinaut_systolic (
     wire [7:0] PipeA;  // A input to pipeline
     wire [7:0] PipeB;  // B input to pipeline
     wire [15:0] PipeC;  // C input to pipeline
+    wire        PipeAe;  // A exponent size
+    wire        PipeBe;  // B exponent size
+    wire        PipeSave;  // Save flag
     wire [34:0] Pipe0w;  // Pipeline 0 output
+    wire        Pipe0Sw;  // Pipeline 0 output Save
     reg  [34:0] Pipe0s;  // Pipeline 0 state
-    reg         Save0s;  // Pipeline 0 state Save
+    reg         Pipe0Ss;  // Pipeline 0 state Save
     wire [31:0] Pipe1w;  // Pipeline 1 output
-    wire        Save1w;  // Pipeline 1 output Save
+    wire        Pipe1Sw;  // Pipeline 1 output Save
     reg  [31:0] Pipe1s;  // Pipeline 1 state
-    reg         Save1s;  // Pipeline 1 state Save
+    reg         Pipe1Ss;  // Pipeline 1 state Save
     wire [31:0] Pipe2w;  // Pipeline 2 output
-    wire        Save2w;  // Pipeline 2 output Save
+    wire        Pipe2Sw;  // Pipeline 2 output Save
     reg  [31:0] Pipe2s;  // Pipeline 2 state
-    reg         Save2s;  // Pipeline 2 state Save
+    reg         Pipe2Ss;  // Pipeline 2 state Save
     wire [15:0] Pipe3w;  // Pipeline 3 output (to C)
-    wire        Save3w;  // Pipeline 3 output Save
+    wire        Pipe3Sw;  // Pipeline 3 output Save
 
     // Increment handling
     always @(posedge clk) begin
@@ -452,36 +466,30 @@ module tt_um_machinaut_systolic (
     // Pipeline
     // Multiplex inputs to pipeline
     pipeIn pIn(.cnt(count),
-        .ci(col_in_full), .co(col_buf_out), .ri(row_in_full), .ro(row_buf_out),
+        .ci(col_in_full), .co(col_buf_out),
+        .cci(col_ctrl_in_full), .cco(col_ctrl_buf_out),
+        .ri(row_in_full), .ro(row_buf_out),
+        .rci(row_ctrl_in_full), .rco(row_ctrl_buf_out),
         .C0(C[0]), .C1(C[1]), .C2(C[2]), .C3(C[3]),
-        .A(PipeA), .B(PipeB), .C(PipeC));
+        .A(PipeA), .B(PipeB), .C(PipeC),
+        .Ae(PipeAe), .Be(PipeBe), .save(PipeSave)
+    );
     // Pipeline stages
-    pipe0 p0(.A(PipeA), .B(PipeB), .C(PipeC), .out(Pipe0w));
-    pipe1 p1(.in(Pipe0s), .out(Pipe1w));
-    pipe2 p2(.in(Pipe1s), .out(Pipe2w));
-    pipe3 p3(.in(Pipe2s), .out(Pipe3w));
-    // Save bits
-    assign Save1w = Save0s;
-    assign Save2w = Save1s;
-    assign Save3w = Save2s;
+    pipe0 p0(
+        .A(PipeA), .B(PipeB), .C(PipeC),
+        .Ae(PipeAe), .Be(PipeBe), .save(PipeSave),
+        .out(Pipe0w), .saveout(Pipe0Sw));
+    pipe1 p1(.in(Pipe0s), .save(Pipe0Ss), .out(Pipe1w), .saveout(Pipe1Sw));  
+    pipe2 p2(.in(Pipe1s), .save(Pipe1Ss), .out(Pipe2w), .saveout(Pipe2Sw));
+    pipe3 p3(.in(Pipe2s), .save(Pipe2Ss), .out(Pipe3w), .saveout(Pipe3Sw));
     // Latch pipeline outputs
     always @(posedge clk) begin
         if (!rst_n) begin  // Zero all regs if we're in reset
             Pipe0s <= 0; Pipe1s <= 0; Pipe2s <= 0;
-            Save0s <= 0; Save1s <= 0; Save2s <= 0;
+            Pipe0Ss <= 0; Pipe1Ss <= 0; Pipe2Ss <= 0;
         end else begin
             Pipe0s <= Pipe0w; Pipe1s <= Pipe1w; Pipe2s <= Pipe2w;
-            Save1s <= Save1w; Save2s <= Save2w;
-            // Set Save0s based on address
-            if (count == 2) begin
-                Save0s <= (col_ctrl_in_full[3:2] == 1) && (row_ctrl_in_full[3:2] == 1);
-            end else if (count == 3) begin
-                Save0s <= (col_ctrl_in_full[3:2] == 1) && (row_ctrl_in_full[3:2] == 1);
-            end else if (count == 0) begin
-                Save0s <= (col_ctrl_buf_out[3:2] == 1) && (row_ctrl_buf_out[3:2] == 1);
-            end else begin
-                Save0s <= (col_ctrl_buf_out[3:2] == 1) && (row_ctrl_buf_out[3:2] == 1);
-            end
+            Pipe0Ss <= Pipe0Sw; Pipe1Ss <= Pipe1Sw; Pipe2Ss <= Pipe2Sw;
         end
     end
 
@@ -496,7 +504,7 @@ module tt_um_machinaut_systolic (
                 end
                 if (col_ctrl_in_full[3:2] == 3) begin
                     C[2] <= col_in_full;
-                end else if (Save2s) begin
+                end else if (Pipe3Sw) begin
                     C[2] <= Pipe3w;
                 end
                 if (row_ctrl_in_full[3:2] == 2) begin
@@ -506,15 +514,15 @@ module tt_um_machinaut_systolic (
                     C[3] <= row_in_full;
                 end
             end else if (count == 0) begin
-                if (Save2s) begin
+                if (Pipe3Sw) begin
                     C[3] <= Pipe3w;
                 end
             end else if (count == 1) begin
-                if (Save2s) begin
+                if (Pipe3Sw) begin
                     C[0] <= Pipe3w;
                 end
             end else begin
-                if (Save2s) begin
+                if (Pipe3Sw) begin
                     C[1] <= Pipe3w;
                 end
             end
