@@ -80,6 +80,7 @@ endmodule
 // Pipeline modules
 // Input multiplexer to pick what's going into the first pipeline stage this clock
 module pipeIn (
+    // TODO call it 'count' everywhere
     input wire [1:0] cnt,  // state counter
     input wire [15:0] ci, input wire [15:0] co,  // column in/out
     input wire [3:0] cci, input wire [3:0] cco,  // column control in/out
@@ -104,7 +105,9 @@ module pipeIn (
     // If state is 1, read A1/B1 from outputs and C3 from accumulator
     assign Ae   = (cnt == 3) ? cci[2] : cco[2];
     assign Be   = (cnt == 3) ? rci[2] : rco[2];
+    // TODO ADDRESS DECODE
     assign save = (cnt == 3) ? ((cci[3] == 0) && (rci[3] == 1)) : ((cco[3] == 0) && (rco[3] == 1));
+    // TODO COUNT MUX
     assign A = (!save) ? 0 : (cnt == 3) ? A0i : (cnt == 0) ? A1o : (cnt == 1) ? A0o : A1o;
     assign B = (!save) ? 0 : (cnt == 3) ? B0i : (cnt == 0) ? B0o : (cnt == 1) ? B1o : B1o;
     assign C = (!save) ? 0 : (cnt == 3) ? C0  : (cnt == 0) ? C1  : (cnt == 1) ? C2 : C3;
@@ -410,6 +413,7 @@ module tt_um_machinaut_systolic (
 );
     // UIO assignments for now:
     // 7:4 - reserved for future JTAG implementation, left input for now
+    // TODO: unify these at the end of the module
     assign uio_oe[7:4] = 4'b0000;  // Unused pins
     assign uio_out[7:2] = 6'b000000;  // Unused outputs
 
@@ -517,9 +521,14 @@ module tt_um_machinaut_systolic (
             row_ctrl_buf_out <= 0;
         end else begin
             if (boundary) begin
+                // TODO ADDRESS DECODE
                 if ((col_ctrl_in_full[3:2] == 2'b10) && (row_ctrl_in_full[3:2] == 2'b01)) begin
                     col_buf_out <= C0;
                     row_buf_out <= Pipe3Sw ? Pipe3w : C1;
+                end else if ((col_ctrl_in_full[3:2] == 2'b10) && (row_ctrl_in_full[3:2] == 2'b00)) begin
+                    // TODO: round these
+                    col_buf_out <= {C0[15:8], C2[15:8]};
+                    row_buf_out <= {(Pipe3Sw ? Pipe3w[15:8] : C1[15:8]), C3[15:8]};
                 end else if ((col_ctrl_in_full[3:2] == 2'b11) && (row_ctrl_in_full[3:2] == 2'b00)) begin
                     col_buf_out <= C2;
                     row_buf_out <= C3;
@@ -569,15 +578,25 @@ module tt_um_machinaut_systolic (
             C0 <= 0; C1 <= 0; C2 <= 0; C3 <= 0;
         end else begin
             if (count == 3) begin
+                // TODO ADDRESS DECODE
                 if ((col_ctrl_in_full[3:2] == 2'b10) && (row_ctrl_in_full[3:2] == 2'b01)) begin
                     C0 <= col_in_full;
                     C1 <= row_in_full;
-                end else if (Pipe3Sw) begin
-                    C1 <= Pipe3w;
-                end
-                if ((col_ctrl_in_full[3:2] == 2'b11) && (row_ctrl_in_full[3:2] == 2'b00)) begin
+                end else if ((col_ctrl_in_full[3:2] == 2'b10) && (row_ctrl_in_full[3:2] == 2'b00)) begin
+                    C0 <= {col_in_full[15:8], 8'b00000000};
+                    C1 <= {row_in_full[15:8], 8'b00000000};
+                    C2 <= {col_in_full[7:0], 8'b00000000};
+                    C3 <= {row_in_full[7:0], 8'b00000000};
+                end else if ((col_ctrl_in_full[3:2] == 2'b11) && (row_ctrl_in_full[3:2] == 2'b00)) begin
                     C2 <= col_in_full;
                     C3 <= row_in_full;
+                    if (Pipe3Sw) begin
+                        C1 <= Pipe3w;
+                    end
+                end else begin
+                    if (Pipe3Sw) begin
+                        C1 <= Pipe3w;
+                    end
                 end
             end else if (count == 0) begin
                 if (Pipe3Sw) begin
@@ -616,7 +635,6 @@ module tt_um_machinaut_systolic (
 
     // Assign outputs
     assign uo_out = (!rst_n) ? 0 : {col_out_mux, row_out_mux};
-    assign uio_oe[1:0] = 2'b11;
+    assign uio_oe[1:0] = (!rst_n) ? 0 : 2'b11;
     assign uio_out[1:0] = (!rst_n) ? 0 : {col_ctrl_out_mux, row_ctrl_out_mux};
-
 endmodule
