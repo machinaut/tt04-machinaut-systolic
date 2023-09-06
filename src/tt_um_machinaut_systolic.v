@@ -515,15 +515,11 @@ module tt_um_machinaut_systolic (
         end
     endgenerate
 
-    wire [7:0] C0r;
-    wire [7:0] C1r;
-    wire [7:0] C2r;
-    wire [7:0] C3r;
+    wire [7:0] C02r;
+    wire [7:0] C13r;
 
-    r16to8 r0(.in(C0), .out(C0r));
-    r16to8 r1(.in(Pipe3Sw ? Pipe3w : C1), .out(C1r));
-    r16to8 r2(.in(C2), .out(C2r));
-    r16to8 r3(.in(C3), .out(C3r));
+    r16to8 r02(.in((count[0] == 1) ? C0 : C2), .out(C02r));
+    r16to8 r13(.in((count[0] == 1) ? (Pipe3Sw ? Pipe3w : C1) : C3), .out(C13r));
 
     // Output storage buffers, written at posedge clk and read at negedge clk
     always @(posedge clk) begin
@@ -533,16 +529,14 @@ module tt_um_machinaut_systolic (
             col_ctrl_buf_out <= 0;
             row_ctrl_buf_out <= 0;
         end else begin
-            if (boundary) begin
+            if (count == 3) begin
                 // TODO ADDRESS DECODE
                 if ((col_ctrl_in_full[3:2] == 2'b10) && (row_ctrl_in_full[3:2] == 2'b01)) begin
                     col_buf_out <= C0;
                     row_buf_out <= Pipe3Sw ? Pipe3w : C1;
                 end else if ((col_ctrl_in_full[3:2] == 2'b10) && (row_ctrl_in_full[3:2] == 2'b00)) begin
-                    // TODO: Use just two rounding units to just-in-time round the second half of the output
-                    // In the next cycle
-                    col_buf_out <= {C0r, C2r};
-                    row_buf_out <= {C1r, C3r};
+                    col_buf_out <= {C02r, col_in_full[7:0]};
+                    row_buf_out <= {C13r, row_in_full[7:0]};
                 end else if ((col_ctrl_in_full[3:2] == 2'b11) && (row_ctrl_in_full[3:2] == 2'b00)) begin
                     col_buf_out <= C2;
                     row_buf_out <= C3;
@@ -552,6 +546,11 @@ module tt_um_machinaut_systolic (
                 end
                 col_ctrl_buf_out <= col_ctrl_in_full;
                 row_ctrl_buf_out <= row_ctrl_in_full;
+            end else if (count == 0) begin
+                if ((col_ctrl_buf_out[3:2] == 2'b10) && (row_ctrl_buf_out[3:2] == 2'b00)) begin
+                    col_buf_out[7:0] <= {C02r};
+                    row_buf_out[7:0] <= {C13r};
+                end
             end
         end
     end
@@ -599,8 +598,7 @@ module tt_um_machinaut_systolic (
                 end else if ((col_ctrl_in_full[3:2] == 2'b10) && (row_ctrl_in_full[3:2] == 2'b00)) begin
                     C0 <= {col_in_full[15:8], 8'b00000000};
                     C1 <= {row_in_full[15:8], 8'b00000000};
-                    C2 <= {col_in_full[7:0], 8'b00000000};
-                    C3 <= {row_in_full[7:0], 8'b00000000};
+                    // temporarily stash the other two values in the output buffer
                 end else if ((col_ctrl_in_full[3:2] == 2'b11) && (row_ctrl_in_full[3:2] == 2'b00)) begin
                     C2 <= col_in_full;
                     C3 <= row_in_full;
@@ -613,7 +611,12 @@ module tt_um_machinaut_systolic (
                     end
                 end
             end else if (count == 0) begin
-                if (Pipe3Sw) begin
+                if ((col_ctrl_buf_out[3:2] == 2'b10) && (row_ctrl_buf_out[3:2] == 2'b00)) begin
+                    // Temporarily stash these in the output buffer
+                    // then read back next cycle
+                    C2 <= {col_buf_out[7:0], 8'b00000000};
+                    C3 <= {row_buf_out[7:0], 8'b00000000};
+                end else if (Pipe3Sw) begin
                     C2 <= Pipe3w;
                 end
             end else if (count == 1) begin

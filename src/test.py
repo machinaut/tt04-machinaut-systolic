@@ -291,9 +291,9 @@ async def test_2x2(dut):
 async def test_Cshort(dut):
     dut._log.info("start test_Cshort")
     await cocotb.start_soon(reset(dut))
-    # TODO: do actual numbers instead of NANs
     for _ in range(30):
         Ch = f"{random.randint(0, 2**64-1):016x}"
+        # Ch = '7fff7fff7fff7fff'
         assert is_hex(Ch, 16), f"Ch={repr(Ch)}"
         C0 = FP16.fromh(Ch[0:4])
         C1 = FP16.fromh(Ch[4:8])
