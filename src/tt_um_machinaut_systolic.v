@@ -1,6 +1,8 @@
 `default_nettype none
 
 // 1-bit 4-to-1 mux
+// TODO: use these in any case we switch on count
+// TODO: use case statement instead of ternary
 module mux1b4t1 (
     input wire [3:0] in,
     input wire [1:0] addr,
@@ -10,12 +12,57 @@ module mux1b4t1 (
 endmodule
 
 // 4-bit 4-to-1 mux
+// TODO: use these in any case we switch on count
+// TODO: use case statement instead of ternary
 module mux4b4t1 (
     input wire [15:0] in,
     input wire [1:0] addr,
     output wire [3:0] out
 );
     assign out = (addr == 0) ? in[15:12] : (addr == 1) ? in[11:8] : (addr == 2) ? in[7:4] : in[3:0];
+endmodule
+
+// Round FP16 to E5M2, used for faster C readout
+module r16to8 (
+    input wire [15:0] in,
+    output wire [7:0] out
+);
+    // inputs
+    wire sig; wire [4:0] exp; wire [9:0] man;
+    // flags
+    wire nan; wire inf;
+    // conditions
+    wire odd; wire half; wire rem; wire round;
+    // round
+    wire [3:0] pre; wire [3:0] inc;
+    // outputs
+    wire out_sig; wire [4:0] out_exp; wire [1:0] out_man;
+
+    // Unpack inputs
+    assign sig = in[15];
+    assign exp = in[14:10];
+    assign man = in[9:0];
+    // unpack flags
+    assign nan = (exp == 5'b11111) && (man != 0);
+    assign inf = (exp == 5'b11111) && (man == 0);
+    // Conditions
+    assign odd = in[8];
+    assign half = in[7];
+    assign rem = (|in[6:0]);
+    assign round = (half) && (rem || odd);
+    // Round
+    assign pre = {(exp > 0) ? (2'b01) : (2'b00), man[9:8]};
+    assign inc = round ? pre + 1 : pre;
+    // Overflow and outputs
+    assign out_exp = inc[3] ? exp + 1 : exp;
+    assign out_man = inc[3] ? inc[2:1] : inc[1:0];
+    assign out_sig = ((out_exp == 0) && (out_man == 0)) ? 0 : sig;
+
+    assign out =   
+        (nan) ? {1'b0, 5'b11111, 2'b11} :
+        (inf || (out_exp == 31)) ? {sig, 5'b11111, 2'b00} :
+        {out_sig, out_exp, out_man};
+
 endmodule
 
 // Addresses for Columns and Rows
@@ -62,6 +109,7 @@ module pipeIn (
     assign B = (!save) ? 0 : (cnt == 3) ? B0i : (cnt == 0) ? B0o : (cnt == 1) ? B1o : B1o;
     assign C = (!save) ? 0 : (cnt == 3) ? C0  : (cnt == 0) ? C1  : (cnt == 1) ? C2 : C3;
 endmodule
+
 module pipe0 (
     input  wire [7:0] A, input  wire [7:0] B, input  wire [15:0] C,
     input wire Ae, input wire Be, input wire save,
@@ -109,9 +157,10 @@ module pipe0 (
     assign Psexp = Aexp + Bexp + ((Asub || Bsub) ? -14 : -15);
     assign Pq = Mq * Nq;
 
-    assign out = save ? {Pnan, Pinf, Pzero, Psig, Psexp, Pq, C} : 0;
+    assign out = (!save) ? 0 : {Pnan, Pinf, Pzero, Psig, Psexp, Pq, C};
     assign saveout = save;
 endmodule
+
 module pipe1 (
     input wire [34:0] in, input wire save,
     output wire [31:0] out, output wire saveout
@@ -183,9 +232,10 @@ module pipe1 (
         (Pqr[10]) ? {Psig, Pexpf, Pqr[9:0]} :
                     {Psig, 5'b00000, Pqr[9:0]};
     // Output
-    assign out = save ? {P, C} : 0;
+    assign out = (!save) ? 0 : {P, C};
     assign saveout = save;
 endmodule
+
 module pipe2 (
     input wire [31:0] in, input wire save,
     output wire [39:0] out, output wire saveout
@@ -264,9 +314,10 @@ module pipe2 (
     assign Ssig = Fsig;
 
     // Bits: Snan=1 Sinf=1 Szero=1 Ssig=1 Sexp=5 Sq=15 C=16 = 40
-    assign out = {Snan, Sinf, Szero, Ssig, Sexp, Sq, C};
+    assign out = (!save) ? 0 : {Snan, Sinf, Szero, Ssig, Sexp, Sq, C};
     assign saveout = save;
 endmodule
+
 module pipe3 (
     input wire [39:0] in, input wire save,
     output wire [15:0] out, output wire saveout
@@ -343,9 +394,10 @@ module pipe3 (
         (Szero) ? {Ssig, 5'b00000, 10'b0000000000} :
         (Sqf[10]) ? {Ssig, Sexpr, Sqf[9:0]} :
                     {Ssig, 5'b00000, Sqf[9:0]};
-    assign out = save ? S : 0;
+    assign out = (!save) ? 0 : S;
     assign saveout = save;
 endmodule
+
 module tt_um_machinaut_systolic (
     input  wire [7:0] ui_in,    // Dedicated inputs - connected to the input switches
     output wire [7:0] uo_out,   // Dedicated outputs - connected to the 7 segment display

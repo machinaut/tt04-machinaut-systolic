@@ -195,15 +195,16 @@ if __name__ == "__main__":
                 and (f != -f)
                 and (g != -g)
             ):
-                sign = -1 if ((f + g) / 2) < 0 else 1
+                m = (f + g) / 2
+                sign = -1 if m < 0 else 1
                 # Check that halfway rounds to even
-                b = cls.fromf((f + g) / 2).b
+                b = cls.fromf(m).b
                 assert b[-1] == "0", f"{cls.__name__} h={h} j={j} b={b} f={f} g={g}"
                 # Check rounding up
-                k = cls.fromf((f + g) / 2 + sign * 1e-10).h
+                k = cls.fromf(m + sign * 1e-10).h
                 assert k == j, f"{cls.__name__} h={h} j={j} k={k} f={f} g={g}"
                 # Check rounding down
-                k = cls.fromf((f + g) / 2 - sign * 1e-10).h
+                k = cls.fromf(m - sign * 1e-10).h
                 assert k == h, f"{cls.__name__} h={h} j={j} k={k} f={f} g={g}"
 
     # Test boundary values
