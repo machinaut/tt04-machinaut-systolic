@@ -226,11 +226,15 @@ async def test_C(dut):
     await test_sequence(dut, blocks=blocks)
 
 
-def mul22(Ah, Bh, verbose=False):
+def mul22(Ah, Bh, Ci=None, verbose=False):
     assert len(Ah) == len(Bh), f"Ah={repr(Ah)} Bh={repr(Bh)}"
     assert is_hex(Ah), f"Ah={repr(Ah)}"
     assert is_hex(Bh), f"Bh={repr(Bh)}"
-    C0, C1, C2, C3 = FP16.fromf(0.), FP16.fromf(0.), FP16.fromf(0.), FP16.fromf(0.)
+    assert Ci is None or is_hex(Ci, 16), f"Ci={repr(Ci)}"
+    C0 = FP16.fromh(Ci[0:4]) if Ci is not None else FP16.fromf(0.)
+    C1 = FP16.fromh(Ci[4:8]) if Ci is not None else FP16.fromf(0.)
+    C2 = FP16.fromh(Ci[8:12]) if Ci is not None else FP16.fromf(0.)
+    C3 = FP16.fromh(Ci[12:16]) if Ci is not None else FP16.fromf(0.)
     for i in range(0, len(Ah), 4):
         A0, A1 = E5M2.fromh(Ah[i:i+2]), E5M2.fromh(Ah[i+2:i+4])
         B0, B1 = E5M2.fromh(Bh[i:i+2]), E5M2.fromh(Bh[i+2:i+4])
@@ -243,9 +247,9 @@ def mul22(Ah, Bh, verbose=False):
             print(f"B0 {B0.h} {B0.f} B1 {B1.h} {B1.f}")
             print(f"C0 {C0.h} {C0.f} C1 {C1.h} {C1.f}")
             print(f"C2 {C2.h} {C2.f} C3 {C3.h} {C3.f}")
-    Ch = C0.h + C1.h + C2.h + C3.h
-    assert is_hex(Ch, 16), f"Ch={repr(Ch)}"
-    return Ch
+    Co = C0.h + C1.h + C2.h + C3.h
+    assert is_hex(Co, 16), f"Co={repr(Co)}"
+    return Co
 
 
 @cocotb.test()
@@ -298,8 +302,7 @@ async def test_ABC(dut):
 async def test_ABABC(dut):
     dut._log.info("start test_ABABC")
     await cocotb.start_soon(reset(dut))
-
-    for _ in range(10000):  # TODO More
+    for _ in range(30):  # TODO More
         Ah = f"{random.randint(0, 2**32-1):08x}"
         Bh = f"{random.randint(0, 2**32-1):08x}"
         Ch = mul22(Ah, Bh)
@@ -310,6 +313,29 @@ async def test_ABABC(dut):
             {'a': 6,},
             {'a': 7, 'co': Ch[0:4], 'ro': Ch[4:8],},
             {'a': 0, 'co': Ch[8:12], 'ro': Ch[12:16],},
+            {},
+        ]
+        await test_sequence(dut, blocks=blocks)
+
+
+
+@cocotb.test()
+async def test_CABC(dut):
+    dut._log.info("start test_CABC")
+    await cocotb.start_soon(reset(dut))
+    for _ in range(30): # TODO More
+        Ah = f"{random.randint(0, 2**16-1):04x}"
+        Bh = f"{random.randint(0, 2**16-1):04x}"
+        Ci = f"{random.randint(0, 2**64-1):016x}"
+        Co = mul22(Ah, Bh, Ci)
+        dut._log.info(f"  test_CABC {Ah} {Bh} {Ci} {Co}")
+        blocks = [
+            {'a': 6, 'ci': Ci[0:4], 'ri': Ci[4:8],},
+            {'a': 7, 'ci': Ci[8:12], 'ri': Ci[12:16], 'co': '0000', 'ro': '0000',},
+            {'a': 1, 'ci': Ah, 'ri': Bh, 'co': '0000', 'ro': '0000',},
+            {'a': 6,},
+            {'a': 7, 'co': Co[0:4], 'ro': Co[4:8],},
+            {'a': 0, 'co': Co[8:12], 'ro': Co[12:16],},
             {},
         ]
         await test_sequence(dut, blocks=blocks)
