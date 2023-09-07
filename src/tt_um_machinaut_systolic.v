@@ -191,7 +191,7 @@ module pipe1 (
     assign P =
         (Pnan) ? {1'b0, 5'b11111, 10'b1111111111} :
         (Pinf) ? {Psig, 5'b11111, 10'b0000000000} :
-        (Pzero) ? {1'b0, 5'b00000, 10'b0000000000} :
+        (Pzero) ? {Psig, 5'b00000, 10'b0000000000} :
         (Pqr[10]) ? {Psig, Pexpf, Pqr[9:0]} :
                     {Psig, 5'b00000, Pqr[9:0]};
     // Output
@@ -354,8 +354,7 @@ module pipe3 (
     assign S =
         (Snan) ? {1'b0, 5'b11111, 10'b1111111111} :
         (Sinf) ? {Ssig, 5'b11111, 10'b0000000000} :
-        // TODO: upgrade tests to validate 0 == -0, and then cleanup sig
-        (Szero || (Sqf[10:0] == 0)) ? {1'b0, 5'b00000, 10'b0000000000} :
+        (Szero) ? {Ssig, 5'b00000, 10'b0000000000} :
         (Sqf[10]) ? {Ssig, Sexpr, Sqf[9:0]} :
                     {Ssig, 5'b00000, Sqf[9:0]};
     assign out = (!save) ? 0 : S;
