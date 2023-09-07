@@ -354,7 +354,8 @@ module pipe3 (
     assign S =
         (Snan) ? {1'b0, 5'b11111, 10'b1111111111} :
         (Sinf) ? {Ssig, 5'b11111, 10'b0000000000} :
-        (Szero) ? {Ssig, 5'b00000, 10'b0000000000} :
+        // TODO: upgrade tests to validate 0 == -0, and then cleanup sig
+        (Szero || (Sqf[10:0] == 0)) ? {1'b0, 5'b00000, 10'b0000000000} :
         (Sqf[10]) ? {Ssig, Sexpr, Sqf[9:0]} :
                     {Ssig, 5'b00000, Sqf[9:0]};
     assign out = (!save) ? 0 : S;
@@ -538,13 +539,11 @@ module tt_um_machinaut_systolic (
                 if ((col_ctrl_in_full[3:2] == 2'b10) && (row_ctrl_in_full[3:2] == 2'b01)) begin
                     C0 <= col_in_full;
                     C1 <= row_in_full;
-                end else if ((col_ctrl_in_full[3:2] == 2'b11) && (row_ctrl_in_full[3:2] == 2'b00)) begin
-                    C2 <= col_in_full;
-                    C3 <= row_in_full;
-                    if (Pipe3Sw) begin
-                        C1 <= Pipe3w;
-                    end
                 end else begin
+                    if ((col_ctrl_in_full[3:2] == 2'b11) && (row_ctrl_in_full[3:2] == 2'b00)) begin
+                        C2 <= col_in_full;
+                        C3 <= row_in_full;
+                    end
                     if (Pipe3Sw) begin
                         C1 <= Pipe3w;
                     end

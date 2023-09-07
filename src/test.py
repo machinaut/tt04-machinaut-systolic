@@ -226,17 +226,25 @@ async def test_C(dut):
     await test_sequence(dut, blocks=blocks)
 
 
-def mul22(Ah, Bh, half=False):
-    assert is_hex(Ah, 4), f"Ah={repr(Ah)}"
-    assert is_hex(Bh, 4), f"Bh={repr(Bh)}"
-    A0, A1 = E5M2.fromh(Ah[0:2]), E5M2.fromh(Ah[2:4])
-    B0, B1 = E5M2.fromh(Bh[0:2]), E5M2.fromh(Bh[2:4])
-    C0 = fma(A0, B0, half=half)
-    C1 = fma(A1, B0, half=half)
-    C2 = fma(A0, B1, half=half)
-    C3 = fma(A1, B1, half=half)
+def mul22(Ah, Bh, verbose=False):
+    assert len(Ah) == len(Bh), f"Ah={repr(Ah)} Bh={repr(Bh)}"
+    assert is_hex(Ah), f"Ah={repr(Ah)}"
+    assert is_hex(Bh), f"Bh={repr(Bh)}"
+    C0, C1, C2, C3 = FP16.fromf(0.), FP16.fromf(0.), FP16.fromf(0.), FP16.fromf(0.)
+    for i in range(0, len(Ah), 4):
+        A0, A1 = E5M2.fromh(Ah[i:i+2]), E5M2.fromh(Ah[i+2:i+4])
+        B0, B1 = E5M2.fromh(Bh[i:i+2]), E5M2.fromh(Bh[i+2:i+4])
+        C0 = fma(A0, B0, C0)
+        C1 = fma(A1, B0, C1)
+        C2 = fma(A0, B1, C2)
+        C3 = fma(A1, B1, C3)
+        if verbose:
+            print(f"A0 {A0.h} {A0.f} A1 {A1.h} {A1.f}")
+            print(f"B0 {B0.h} {B0.f} B1 {B1.h} {B1.f}")
+            print(f"C0 {C0.h} {C0.f} C1 {C1.h} {C1.f}")
+            print(f"C2 {C2.h} {C2.f} C3 {C3.h} {C3.f}")
     Ch = C0.h + C1.h + C2.h + C3.h
-    assert is_hex(Ch, 8 if half else 16), f"Ch={repr(Ch)}"
+    assert is_hex(Ch, 16), f"Ch={repr(Ch)}"
     return Ch
 
 
@@ -277,6 +285,28 @@ async def test_ABC(dut):
         dut._log.info(f"  test_ABC {Ah} {Bh} {Ch}")
         blocks = [
             {'a': 1, 'ci': Ah, 'ri': Bh,},
+            {'a': 6,},
+            {'a': 7, 'co': Ch[0:4], 'ro': Ch[4:8],},
+            {'a': 0, 'co': Ch[8:12], 'ro': Ch[12:16],},
+            {},
+        ]
+        await test_sequence(dut, blocks=blocks)
+
+
+
+@cocotb.test()
+async def test_ABABC(dut):
+    dut._log.info("start test_ABABC")
+    await cocotb.start_soon(reset(dut))
+
+    for _ in range(10000):  # TODO More
+        Ah = f"{random.randint(0, 2**32-1):08x}"
+        Bh = f"{random.randint(0, 2**32-1):08x}"
+        Ch = mul22(Ah, Bh)
+        dut._log.info(f"  test_ABABC {Ah} {Bh} {Ch}")
+        blocks = [
+            {'a': 1, 'ci': Ah[0:4], 'ri': Bh[0:4],},
+            {'a': 1, 'ci': Ah[4:8], 'ri': Bh[4:8],},
             {'a': 6,},
             {'a': 7, 'co': Ch[0:4], 'ro': Ch[4:8],},
             {'a': 0, 'co': Ch[8:12], 'ro': Ch[12:16],},
