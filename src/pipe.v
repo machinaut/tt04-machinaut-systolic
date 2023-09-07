@@ -7,8 +7,8 @@ module pipe0 (
     output wire [34:0] out, output wire saveout
 );
     // Inputs
-    wire Asig; wire signed [4:0] Asexp; wire [1:0] Aman;
-    wire Bsig; wire signed [4:0] Bsexp; wire [1:0] Bman;
+    wire Asig; wire signed [4:0] Asexp; wire [2:0] Aman;
+    wire Bsig; wire signed [4:0] Bsexp; wire [2:0] Bman;
     // Preflags
     wire Aexp0; wire Aexp1; wire Aman0;
     wire Bexp0; wire Bexp1; wire Bman0;

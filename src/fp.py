@@ -109,6 +109,19 @@ class Float:
         # Normalize to get standard NaN / Zero
         return cls.fromf(cls(sig, exp, man).f)
 
+    @classmethod
+    def real(cls):
+        # Get a real instead of including nan/inf
+        return cls.fromf(random.uniform(-cls.MAX, cls.MAX))
+
+    @classmethod
+    def rsub(cls):
+        # Get a random subnormal
+        sig = random.choice("01")
+        exp = '0' * cls.e_l
+        man = "".join(random.choice("01") for _ in range(cls.m_l))
+        return cls.fromf(cls(sig, exp, man).f)
+
     def __str__(self):
         return f"{self.__class__.__name__}({repr(self.sig)},{repr(self.exp)},{repr(self.man)})"
 
@@ -136,8 +149,10 @@ class E5M2(Float):
     MIN: float = 2**-16
 
     @classmethod
-    def fromb(cls, b):
+    def fromb(cls, b, norm=False):
         assert is_bin(b, 8), f"b={repr(b)}"
+        if norm:  # Normalize to get standard NaN / Zero
+            return cls.fromf(cls(b[0], b[1:6], b[6:]).f)
         return cls(b[0], b[1:6], b[6:])
 
 
@@ -149,8 +164,10 @@ class E4M3(Float):
     MIN: float = 2**-9
 
     @classmethod
-    def fromb(cls, b):
+    def fromb(cls, b, norm=False):
         assert is_bin(b, 8), f"b={repr(b)}"
+        if norm:  # Normalize to get standard NaN / Zero
+            return cls.fromf(cls(b[0], b[1:5], b[5:]).f)
         return cls(b[0], b[1:5], b[5:])
 
 

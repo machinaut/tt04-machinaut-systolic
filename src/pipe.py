@@ -59,6 +59,7 @@ async def check_pass(dut, Ci):
     Co = dut.Pipe3w.value.binstr
     assert FP16.fromb(Ci, norm=True) == FP16.fromb(Co, norm=True), f"{Ci} != {Co}"
 
+
 # Test that we pass through C
 @cocotb.test()
 async def test_pass(dut):
@@ -71,3 +72,58 @@ async def test_pass(dut):
     for _ in range(TEST_N):
         Ci = f"{random.randint(0, 2**16 - 1):016b}"
         await check_pass(dut, Ci)
+
+
+# Check A * B
+async def check_ab(dut, Ai, Bi):
+    # TODO: make this a standalone function
+    await reset(dut)
+    A = E5M2.fromb(Ai, norm=True)
+    B = E5M2.fromb(Bi, norm=True)
+    dut.PipeA.value = int(Ai, 2)
+    dut.PipeB.value = int(Bi, 2)
+    dut.PipeSave.value = 1
+    await Timer(1, units="ns")
+    assert dut.Pipe3Sw.value.binstr == "1"
+    Co = FP16.fromb(dut.Pipe3w.value.binstr, norm=True)
+    Ci = FP16.fromf(FP16.fromf(A.f * B.f).f + 0.0)
+    assert Co == Ci, f"({A.f}, {B.f}) {Co} != {Ci} ({A} * {B})"
+
+
+# Test multiplying A * B
+@cocotb.test()
+async def test_ab(dut):
+    await cocotb.start_soon(reset(dut))
+    dut._log.info("start test_ab")
+    # TODO: check other FP8 modes
+    # Special values
+    vals = [0., E5M2.MIN, 1., E5M2.MAX, 'inf', 'nan']
+    values = sum([[float(v), -float(v)] for v in vals], [])
+    for a in values:
+        for b in values:
+            await check_ab(dut, E5M2.fromf(a).b, E5M2.fromf(b).b)
+    # Random value tests
+    for _ in range(TEST_N):
+        A = E5M2.rand()
+        B = E5M2.rand()
+        await check_ab(dut, A.b, B.b)
+    # Random real tests
+    for _ in range(TEST_N):
+        A = E5M2.real()
+        B = E5M2.real()
+        await check_ab(dut, A.b, B.b)
+    # Random sub tests
+    for _ in range(TEST_N):
+        A = E5M2.real()
+        B = E5M2.rsub()
+        await check_ab(dut, A.b, B.b)
+    # Random sub tests
+    for _ in range(TEST_N):
+        A = E5M2.rsub()
+        B = E5M2.real()
+        await check_ab(dut, A.b, B.b)
+    # Random sub tests
+    for _ in range(TEST_N):
+        A = E5M2.rsub()
+        B = E5M2.rsub()
+        await check_ab(dut, A.b, B.b)
