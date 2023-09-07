@@ -223,13 +223,17 @@ async def test_sequence(dut, *, blocks):
         params['col_in'] = block.get('ci', '0000')
         params['row_in'] = block.get('ri', '0000')
         if isinstance(block.get('co', None), FP16):
-            Cof = block['co'].f
-            Rof = block['ro'].f
+            Co = block['co']
+            Ro = block['ro']
+            Cof = Co.f
+            Rof = Ro.f
             col_out, col_ctrl_out, row_out, row_ctrl_out = await send_block(dut, **params)
-            cof = FP16.fromh(col_out).f
-            rof = FP16.fromh(row_out).f
-            assert (cof != cof and Cof != Cof) or cof == Cof, f"cof={cof} Cof={Cof}"
-            assert (rof != rof and Rof != Rof) or rof == Rof, f"rof={rof} Rof={Rof}"
+            ro = FP16.fromh(row_out)
+            co = FP16.fromh(col_out)
+            cof = co.f
+            rof = ro.f
+            assert (cof != cof and Cof != Cof) or cof == Cof, f"cof={cof} Cof={Cof} co={co.h} Co={Co.h}"
+            assert (rof != rof and Rof != Rof) or rof == Rof, f"rof={rof} Rof={Rof} ro={ro.h} Ro={Ro.h}"
         else:
             params.update(ADDR_OUT[prev.get('a', 0)])
             params['col_out'] = block.get('co', prev.get('ci', '0000'))

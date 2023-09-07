@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 # %%  Floating point classes
+import math
 import random
 from dataclasses import dataclass
 from itertools import product
@@ -69,7 +70,8 @@ class Float:
     @classmethod
     def fromf(cls, f):
         assert isinstance(f, float), f"f={repr(f)}"
-        sig = "1" if f < 0 else "0"
+        # Correctly pull sign out of negative zero
+        sig = "1" if math.copysign(1.0, f) < 0 else "0"
         if f != f:  # NaN
             return cls("0", "1" * cls.e_l, "1" * cls.m_l)
         if cls.e_l == 5:  # Normal case
@@ -79,7 +81,7 @@ class Float:
             if abs(f) >= cls.MAX:  # Saturate to MAX
                 return cls(sig, "1" * cls.e_l, "1" * (cls.m_l - 1) + "0")
         if abs(f) <= cls.MIN / 2:  # Zero
-            return cls("0", "0" * cls.e_l, "0" * cls.m_l)
+            return cls(sig, "0" * cls.e_l, "0" * cls.m_l)
         if abs(f) <= cls.MIN:  # Min
             return cls(sig, "0" * cls.e_l, "0" * (cls.m_l - 1) + "1")
         # Compare bit by bit
@@ -119,8 +121,10 @@ class FP16(Float):
     MIN: float = 2**-24
 
     @classmethod
-    def fromb(cls, b):
+    def fromb(cls, b, norm=False):
         assert is_bin(b, 16), f"b={repr(b)}"
+        if norm:  # Normalize to get standard NaN / Zero
+            return cls.fromf(cls(b[0], b[1:6], b[6:]).f)
         return cls(b[0], b[1:6], b[6:])
 
 
@@ -174,6 +178,10 @@ if __name__ == "__main__":
     assert E4M3.fromf(float("inf")).h == "7e"  # Note this is MAX value
     assert E4M3.fromh("7e").f == E4M3.MAX
     assert E4M3.fromh("01").f == E4M3.MIN
+
+    # Negative zeros are one of the dumbest hard things to debug
+    assert FP16.fromf(0.).h == "0000"
+    assert FP16.fromf(-0.).h == "8000"
 
     # Rounding near infinity is weird
     assert FP16.fromf(65504. + 16) == FP16.fromf(float("inf"))
@@ -278,3 +286,4 @@ if __name__ == "__main__":
             print(f"D={D} Df={D.f}")
             print(f"E={E} Ef={E.f}")
             assert False
+
