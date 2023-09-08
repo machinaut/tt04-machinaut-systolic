@@ -65,7 +65,6 @@ module pipe0 (
     wire Psig;
     wire [6:0] Psexp;  // TODO: try reducing this to fewer bits
     wire [6:0] Pfrac;
-    wire [15:0] Cout;
 
     // Multiplicands
     multiplicand Am(.X(A), .fmt(Afmt), .nan(Anan), .inf(Ainf), .zero(Azero), .sexp(Asexp), .frac(Afrac));
@@ -184,8 +183,8 @@ module pipe2 (
     wire Pexp0; wire Pexp1; wire Pman0;
     wire Cexp0; wire Cexp1; wire Cman0;
     // Flags
-    wire Pnan; wire Pinf; wire Pzero; wire Psub;
-    wire Cnan; wire Cinf; wire Czero; wire Csub;
+    wire Pnan; wire Pinf; wire Pzero;
+    wire Cnan; wire Cinf; wire Czero;
 
     // Summands
     wire [15:0] F; wire [15:0] G;
@@ -196,14 +195,10 @@ module pipe2 (
     wire [4:0] shift; 
 
     // Sum
-    wire Snan; wire Sinf; wire Szero; wire Ssub;
+    wire Snan; wire Sinf; wire Szero;
     wire Ssig;
     wire [14:0] Sq; 
     wire [4:0] Sexp; 
-    // wire Sqro; wire Sqrg; wire Sqrr; wire Sqrs;
-    // wire [11:0] Sqr; wire [4:0] Sexpr;
-    // wire [10:0] Sqf; wire [4:0] Sexpf;
-    // wire [15:0] S;
 
     // Unpack inputs
     assign P = in[31:16]; assign C = in[15:0];
@@ -213,8 +208,8 @@ module pipe2 (
     assign Pexp0 = (Pexp == 0); assign Pexp1 = (Pexp == 31); assign Pman0 = (Pman == 0);
     assign Cexp0 = (Cexp == 0); assign Cexp1 = (Cexp == 31); assign Cman0 = (Cman == 0);
     // Set flags
-    assign Pnan = Pexp1 & !Pman0; assign Pinf = Pexp1 & Pman0; assign Pzero = Pexp0 & Pman0; assign Psub = Pexp0 & !Pman0;
-    assign Cnan = Cexp1 & !Cman0; assign Cinf = Cexp1 & Cman0; assign Czero = Cexp0 & Cman0; assign Csub = Cexp0 & !Cman0;
+    assign Pnan = Pexp1 & !Pman0; assign Pinf = Pexp1 & Pman0; assign Pzero = Pexp0 & Pman0;
+    assign Cnan = Cexp1 & !Cman0; assign Cinf = Cexp1 & Cman0; assign Czero = Cexp0 & Cman0;
     // Sum flags - initial values
     assign Snan = Pnan || Cnan || (Pinf && Cinf && (Psig != Csig));
     assign Sinf = (!Snan) && (Pinf || Cinf);
@@ -258,7 +253,6 @@ module pipe3 (
     input wire [39:0] in, input wire save,
     output wire [15:0] out, output wire saveout
 );
-    wire [15:0] C;
     wire Sinfin; wire Szeroin;
     wire Snan; wire Sinf; wire Szero;
     wire Ssig;
@@ -268,7 +262,6 @@ module pipe3 (
     wire [10:0] Sqf; wire [4:0] Sexpf;
     wire [15:0] S;
 
-    assign C = in[15:0];
     assign Sq = in[30:16];
     assign Sexp = in[35:31];
     assign Ssig = in[36];
