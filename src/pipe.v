@@ -1,138 +1,172 @@
 // pipe.v - Floating point pipeline
 `default_nettype none
 
+// Unpack an input value to its components
+module multiplicand (
+    // input value
+    input wire [7:0] X,
+    input wire fmt,
+    // output flags
+    output wire nan,
+    output wire inf,
+    output wire zero,
+    // output values
+    output wire [5:0] sexp,  // Stores exp + 16
+    output wire [2:0] frac  // omit the implied high bit
+);
+    // preflags
+    wire exp0;
+    wire exp1;
+    wire man0;
+    assign exp0 = fmt ? (X[6:3] == 4'b0000) : (X[6:2] == 5'b00000);
+    assign exp1 = fmt ? (X[6:3] == 4'b1111) : (X[6:2] == 5'b11111);
+    assign man0 = fmt ? (X[2:0] == 3'b000) : (X[1:0] == 2'b00);
+    // flags
+    wire sub;
+    assign nan = exp1 && (fmt ? (X[2:0] == 3'b111) : !man0);
+    assign inf = exp1 && man0 && !fmt;
+    assign zero = exp0 && man0;
+    assign sub = exp0 && !man0;
+    // calculate exponent
+    assign sexp = (sub) ?
+        ((fmt) ? // subnormals
+            (X[2] ? (X[6:3] + 9) : X[1] ? (X[6:3] + 8) : (X[6:3] + 7)) : // E4M3 subnormals
+            (X[1] ? (X[6:2] + 1) : (X[6:2] + 0))  // E5M2 subnormals
+        ) : // normals
+        (fmt ? (X[6:3] + 9) : (X[6:2] + 1));
+    assign frac = (sub) ? 
+        ((fmt) ? // subnormals
+            (X[2] ? {X[1:0], 1'b0} : X[1] ? {X[0], 2'b00} : {3'b000}) : // E4M3 subnormals
+            (X[1] ? {X[0], 2'b00} : {3'b000})  // E5M2 subnormals
+        ) : // normals
+        (fmt ? {X[2:0]} : {X[1:0], 1'b0});
+endmodule
+
+// Multiply A and B to get product
 module pipe0 (
-    input  wire [7:0] A, input  wire [7:0] B, input  wire [15:0] C,
-    input wire Ae, input wire Be, input wire save,
-    output wire [34:0] out, output wire saveout
+    input wire [7:0] A,
+    input wire [7:0] B,
+    input wire [15:0] C,
+    input wire Afmt,
+    input wire Bfmt,
+    input wire save,
+    output wire [33:0] out,
+    output wire saveout
 );
     // Inputs
-    wire Asig; wire signed [4:0] Asexp; wire [2:0] Aman;
-    wire Bsig; wire signed [4:0] Bsexp; wire [2:0] Bman;
-    // Preflags
-    wire Aexp0; wire Aexp1; wire Aman0;
-    wire Bexp0; wire Bexp1; wire Bman0;
-    // Flags
-    wire Anan; wire Ainf; wire Azero; wire Asub;
-    wire Bnan; wire Binf; wire Bzero; wire Bsub;
-
-    // Multiplicands
-    wire [3:0] Mq; wire [3:0] Nq;
-    // Product intermediates
+    wire [5:0] Asexp; wire [2:0] Afrac;
+    wire [5:0] Bsexp; wire [2:0] Bfrac;
+    wire Anan; wire Ainf; wire Azero;
+    wire Bnan; wire Binf; wire Bzero;
+    // Outputs
+    wire Pnan;
+    wire Pinf;
+    wire Pzero;
     wire Psig;
-    wire [7:0] Pq; wire [7:0] Pqs; wire [7:0] Pqs1; wire [13:0] Pqf; wire [10:0] Pqr;
-    wire Pqrg; wire Pqrr; wire Pqrs; wire Pqro;
-    wire signed [6:0] Psexp; wire signed [6:0] Psexps; wire [4:0] Pexpf;
-    // Product flags
-    wire Pnan; wire Pinf; wire Pzero;
-
-    // Unpack inputs
-    assign Asig = A[7];
-    assign Aman = Ae ? A[2:0] : {A[1:0], 1'b0};
-    assign Bsig = B[7];
-    assign Bman = Be ? B[2:0] : {B[1:0], 1'b0};
-    // Set preflags
-    assign Aexp1 = Ae ? (A[6:3] == 4'b1111) : (A[6:2] == 5'b11111);
-    assign Aexp0 = Ae ? (A[6:3] == 4'b0000) : (A[6:2] == 5'b00000);
-    assign Bexp1 = Be ? (B[6:3] == 4'b1111) : (B[6:2] == 5'b11111);
-    assign Bexp0 = Be ? (B[6:3] == 4'b0000) : (B[6:2] == 5'b00000);
-    assign Aman0 = Ae ? (A[2:0] == 0) : (A[1:0] == 0);
-    assign Bman0 = Be ? (B[2:0] == 0) : (B[1:0] == 0);
-    // Set flags
-    assign Anan = Aexp1 & !Aman0; assign Ainf = Aexp1 & Aman0; assign Azero = Aexp0 & Aman0; assign Asub = Aexp0 & !Aman0;
-    assign Bnan = Bexp1 & !Bman0; assign Binf = Bexp1 & Bman0; assign Bzero = Bexp0 & Bman0; assign Bsub = Bexp0 & !Bman0;
-    // Product flags - initial values
-    assign Pnan = Anan || Bnan || (Ainf && Bzero) || (Azero && Binf);
-    assign Pinf = !Pnan && (Ainf || Binf);
-    assign Pzero = !Pnan && !Pinf && (Azero || Bzero || (Asub && Bsub));
-
-    // Exponents
-    assign Asexp = Ae ? (A[6:3] - 7) : (A[6:2] - 15);
-    assign Bsexp = Be ? (B[6:3] - 7) : (B[6:2] - 15);
+    wire [6:0] Psexp;  // TODO: try reducing this to fewer bits
+    wire [6:0] Pfrac;
+    wire [15:0] Cout;
 
     // Multiplicands
-    assign Mq = {1'b1, (Asub) ? Bman : Aman};
-    assign Nq = (Asub) ? {Aman, 1'b0} : (Bsub) ? {Bman, 1'b0} : {1'b1, Bman};
-    // Multiply
-    assign Psig = Asig ^ Bsig;
-    assign Psexp = Asexp + Bsexp + 15;  // TODO: add extra if subnormal?
-    assign Pq = Mq * Nq;
+    multiplicand Am(.X(A), .fmt(Afmt), .nan(Anan), .inf(Ainf), .zero(Azero), .sexp(Asexp), .frac(Afrac));
+    multiplicand Bm(.X(B), .fmt(Bfmt), .nan(Bnan), .inf(Binf), .zero(Bzero), .sexp(Bsexp), .frac(Bfrac));
 
-    // TODO: I don't think we need Pzero, since it should be handled fine as a subnormal
-    assign out = (!save) ? 0 : {Pnan, Pinf, Pzero, Psig, Psexp, Pq, C};
+    // Product flags
+    assign Pnan = Anan || Bnan || (Ainf && Bzero) || (Azero && Binf);
+    assign Pinf = (!Pnan) && (Ainf || Binf);
+    assign Pzero = (!Pnan) && (!Pinf) && (Azero || Bzero);
+
+    // Multiply
+    wire [7:0] Pq;
+    assign Psig = A[7] ^ B[7];
+    assign Pq = {1'b1, Afrac} * {1'b1, Bfrac};
+    assign Psexp = Asexp + Bsexp + Pq[7];  // Stores exp + 32
+    assign Pfrac = Pq[7] ? Pq[6:0] : {Pq[5:0], 1'b0};
+
+    // Outputs
+    assign out = {Pnan, Pinf, Pzero, Psig, Psexp, Pfrac, C};
     assign saveout = save;
 endmodule
 
-module pipe1 (
-    input wire [34:0] in, input wire save,
-    output wire [31:0] out, output wire saveout
+module roundproduct (
+    input wire [6:0] sexp,
+    input wire [6:0] frac,
+    output wire [9:0] man
 );
+    wire rem;
+    wire half;
+    wire round;
+    wire odd;
+    wire [10:0] shifted;
 
-    // Inputs
+    assign rem =
+        (sexp == 13) ? (|frac[0]) :
+        (sexp == 12) ? (|frac[1:0]) :
+        (sexp == 11) ? (|frac[2:0]) :
+        (sexp == 10) ? (|frac[3:0]) :
+        (sexp ==  9) ? (|frac[4:0]) :
+        (sexp ==  8) ? (|frac[5:0]) :
+        (sexp ==  7) ? (|frac[6:0]) : 
+        0;
+
+    assign shifted =
+        (sexp >= 18) ? {frac, 4'b0000} :
+        (sexp == 17) ? {1'b1, frac, 3'b000} :
+        (sexp == 16) ? {2'b01, frac, 2'b00} :
+        (sexp == 15) ? {3'b001, frac, 1'b0} :
+        (sexp == 14) ? {4'b0001, frac[6:0]} :
+        (sexp == 13) ? {5'b00001, frac[6:1]} :
+        (sexp == 12) ? {6'b000001, frac[6:2]} :
+        (sexp == 11) ? {7'b0000001, frac[6:3]} :
+        (sexp == 10) ? {8'b00000001, frac[6:4]} :
+        (sexp ==  9) ? {9'b000000001, frac[6:5]} :
+        (sexp ==  8) ? {10'b0000000001, frac[6]} :
+        (sexp ==  7) ? {11'b00000000001} :
+        0;
+
+    assign half = shifted[0];
+    assign odd = shifted[1];
+    assign round = (half) && (odd || rem);
+    assign man = (round) ? (shifted[10:1] + 1) : shifted[10:1];
+endmodule
+
+// Round the product and normalize to FP16
+module pipe1 (
+    input wire [33:0] in,
+    input wire save,
+    output wire [31:0] out,
+    output wire saveout
+);
+    // Input
     wire Pnan;
-    wire Pinfin;
-    wire Pzeroin;
+    wire Pinf;
+    wire Pzero;
     wire Psig;
-    wire signed [6:0] Psexp;
-    wire [7:0] Pq;
+    wire [6:0] Psexp;
+    wire [6:0] Pfrac;
     wire [15:0] C;
-
-    // Product intermediates
-    wire [7:0] Pqs; wire [7:0] Pqs1; wire [13:0] Pqf; wire [10:0] Pqr;
-    wire Pqrg; wire Pqrr; wire Pqrs; wire Pqro;
-    wire signed [6:0] Psexps; wire [4:0] Pexpf;
-    // Product flags
-    wire Pinf; wire Pzero;
-    // Product final value
-    wire [15:0] P;
-
-    // Unpack inputs
+    assign Pnan = in[33];
+    assign Pinf = in[32];
+    assign Pzero = in[31];
+    assign Psig = in[30];
+    assign Psexp = in[29:23];
+    assign Pfrac = in[22:16];
     assign C = in[15:0];
-    assign Pq = in[23:16];
-    assign Psexp = in[30:24];
-    assign Psig = in[31];
-    assign Pzeroin = in[32];
-    assign Pinfin = in[33];
-    assign Pnan = in[34];
 
-    // Left shift to normalize, in normal flows this results in Pqs[7] == 1
-    // TODO: have these only deal with the lower bits, and chop off the upper bit as always 1
-    assign Pqs    = (Pq[7] == 1) ? Pq        : (Pq[6] == 1) ? {Pq[6:0], 1'b0} : (Pq[5] == 1) ? {Pq[5:0], 2'b00} : (Pq[4] == 1) ? {Pq[4:0], 3'b000} : {Pq[3:0], 4'b0000};
-    assign Pqs1 = {1'b1, Pqs[6:0]};
-    assign Psexps = (Pq[7] == 1) ? Psexp + 1 : (Pq[6] == 1) ? Psexp           : (Pq[5] == 1) ? Psexp - 1        : (Pq[4] == 1) ? Psexp - 2         : Psexp - 3;
-    // Set Pinf, which might overflow post-normalization
-    assign Pinf = Pinfin || (Psexps >= 31);
-    assign Pzero = Pzeroin || (Psexps < -10);
-
-    // Shift right to get to a normal exponent
-    assign Pexpf = (Psexps > 0) ? Psexps : 1;
-    assign Pqf =
-        (Psexps >   0) ? {Pqs1, 6'b000000} :
-        (Psexps ==  0) ? {1'b0, Pqs1, 5'b00000} :
-        (Psexps == -1) ? {2'b00, Pqs1, 4'b0000} :
-        (Psexps == -2) ? {3'b000, Pqs1, 3'b000} :
-        (Psexps == -3) ? {4'b0000, Pqs1, 2'b00} :
-        (Psexps == -4) ? {5'b00000, Pqs1, 1'b0} :
-        (Psexps == -5) ? {6'b000000, Pqs1} :
-        (Psexps == -6) ? {7'b0000000, Pqs1[7:2], (|Pqs1[1:0])} :
-        (Psexps == -7) ? {8'b00000000, Pqs1[7:3], (|Pqs1[2:0])} :
-        (Psexps == -8) ? {9'b000000000, Pqs1[7:4], (|Pqs1[3:0])} :
-        (Psexps == -9) ? {10'b0000000000, Pqs1[7:5], (|Pqs1[4:0])} :
-                         {11'b00000000000, Pqs1[7:6], (|Pqs1[5:0])};
-    // Handle rounding
-    assign Pqro = Pqf[3];  // Odd bit
-    assign Pqrg = Pqf[2];  // Guard bit
-    assign Pqrr = Pqf[1];  // Round bit
-    assign Pqrs = Pqf[0];  // Sticky bit
-    assign Pqr = ((Pqrg) && (Pqrr || Pqrs || Pqro)) ? (Pqf[13:3] + 1) : Pqf[13:3];
+    // Product
+    wire [4:0] Pexp;
+    wire [9:0] Pman;
+    wire [15:0] P;
+    roundproduct rp(.sexp(Psexp), .frac(Pfrac), .man(Pman));
+    assign Pexp = (Psexp >= 48) ? 31 : (Psexp <= 16) ? 0 : Psexp - 17;
 
     // Final product value
     assign P =
         (Pnan) ? {1'b0, 5'b11111, 10'b1111111111} :
-        (Pinf) ? {Psig, 5'b11111, 10'b0000000000} :
-        (Pzero) ? {Psig, 5'b00000, 10'b0000000000} :
-        (Pqr[10]) ? {Psig, Pexpf, Pqr[9:0]} :
-                    {Psig, 5'b00000, Pqr[9:0]};
+        (Pinf  || (Pexp == 31)) ? {Psig, 5'b11111, 10'b0000000000} :
+        (Pzero || (Psexp < 7)) ? {Psig, 5'b00000, 10'b0000000000} :
+        (Psexp > 16) ? {Psig, Pexp, Pman} :
+                        {Psig, 5'b00000, Pman};
     // Output
     assign out = (!save) ? 0 : {P, C};
     assign saveout = save;

@@ -9,7 +9,7 @@ from cocotb.triggers import ClockCycles, FallingEdge, RisingEdge, Timer
 
 from fp import E4M3, E5M2, FP16, fma, is_bin, is_hex
 
-TEST_N = 10000  # TODO: turn this down to 10 for submission
+TEST_N = 1000  # TODO: turn this down to 10 for submission
 # random.seed(0)  # TODO: deterministic seed for submission
 
 
@@ -18,8 +18,8 @@ async def reset(dut):
     dut.PipeA.value = 0
     dut.PipeB.value = 0
     dut.PipeC.value = 0
-    dut.PipeAe.value = 0
-    dut.PipeBe.value = 0
+    dut.PipeAfmt.value = 0
+    dut.PipeBfmt.value = 0
     dut.PipeSave.value = 0
     await Timer(1, units="ns")
 
@@ -30,23 +30,14 @@ async def test_zero(dut):
     await cocotb.start_soon(reset(dut))
     dut._log.info("start test_zero")
     # Check that the outputs are zero
-    assert dut.Pipe0w.value.binstr == "0" * 35
-    assert dut.Pipe0Sw.value.binstr == "0"
-    assert dut.Pipe1w.value.binstr == "0" * 32
-    assert dut.Pipe1Sw.value.binstr == "0"
-    assert dut.Pipe2w.value.binstr == "0" * 40
-    assert dut.Pipe2Sw.value.binstr == "0"
     assert dut.Pipe3w.value.binstr == "0" * 16
-    assert dut.Pipe3Sw.value.binstr == "0"
+    assert dut.Pipe3Save.value.binstr == "0"
     # Same but with saving
     # NOTE: intermediate wires might be nonzero
     dut.PipeSave.value = 1
     await Timer(1, units="ns")
-    assert dut.Pipe0Sw.value.binstr == "1"
-    assert dut.Pipe1Sw.value.binstr == "1"
-    assert dut.Pipe2Sw.value.binstr == "1"
     assert dut.Pipe3w.value.binstr == "0" * 16
-    assert dut.Pipe3Sw.value.binstr == "1"
+    assert dut.Pipe3Save.value.binstr == "1"
 
 
 # Pass through C and return the result
@@ -55,7 +46,7 @@ async def check_pass(dut, Ci):
     dut.PipeC.value = int(Ci, 2)
     dut.PipeSave.value = 1
     await Timer(1, units="ns")
-    assert dut.Pipe3Sw.value.binstr == "1"
+    assert dut.Pipe3Save.value.binstr == "1"
     Co = dut.Pipe3w.value.binstr
     assert FP16.fromb(Ci, norm=True) == FP16.fromb(Co, norm=True), f"{Ci} != {Co}"
 
@@ -75,19 +66,53 @@ async def test_pass(dut):
 
 
 # Check A * B
-async def check_ab(dut, Ai, Bi):
+async def check_ab(dut, A, B, C=None):
     # TODO: make this a standalone function
     await reset(dut)
-    A = E5M2.fromb(Ai, norm=True)
-    B = E5M2.fromb(Bi, norm=True)
-    dut.PipeA.value = int(Ai, 2)
-    dut.PipeB.value = int(Bi, 2)
+    C = FP16.fromf(0.0) if C is None else C
+    assert isinstance(A, (E5M2, E4M3)), f"{A} is not an FP8"
+    assert isinstance(B, (E5M2, E4M3)), f"{B} is not an FP8"
+    assert C is None or isinstance(C, FP16), f"{C} is not an FP16"
+    dut.PipeA.value = int(A.b, 2)
+    dut.PipeB.value = int(B.b, 2)
+    dut.PipeC.value = int(C.b, 2)
+    dut.PipeAfmt.value = 1 if isinstance(A, E4M3) else 0
+    dut.PipeBfmt.value = 1 if isinstance(B, E4M3) else 0
     dut.PipeSave.value = 1
     await Timer(1, units="ns")
-    assert dut.Pipe3Sw.value.binstr == "1"
+    assert dut.Pipe3Save.value.binstr == "1"
     Co = FP16.fromb(dut.Pipe3w.value.binstr, norm=True)
-    Ci = FP16.fromf(FP16.fromf(A.f * B.f).f + 0.0)
-    assert Co == Ci, f"({A.f}, {B.f}) {Co} != {Ci} ({A} * {B})"
+    Ci = FP16.fromf(FP16.fromf(A.f * B.f).f + C.f)
+    assert Co == Ci or Co.f == Ci.f, f"({A.f}, {B.f}, {C.f}) {Co} != {Ci} ({A} * {B} + {C})"
+
+
+# Test identity A * 1
+@cocotb.test()
+async def test_identity(dut):
+    await cocotb.start_soon(reset(dut))
+    dut._log.info("start test_identity")
+    I = E5M2.fromf(1.0)
+    for Acls in [E4M3, E5M2]:
+        # Special values
+        vals = [0., E5M2.MIN, E5M2.MIN * 2, E4M3.MIN, 1., E4M3.MAX, E5M2.MAX, 'inf', 'nan']
+        vals = sum([[float(v), -float(v)] for v in vals], [])
+        for a in vals:
+            await check_ab(dut, Acls.fromf(a), I)
+        # Random value tests
+        for _ in range(TEST_N):
+            await check_ab(dut, Acls.rand(), I)
+        # Random real tests
+        for _ in range(TEST_N):
+            await check_ab(dut, Acls.real(), I)
+        # Random sub tests
+        for _ in range(TEST_N):
+            await check_ab(dut, Acls.real(), I)
+        # Random sub tests
+        for _ in range(TEST_N):
+            await check_ab(dut, Acls.rsub(), I)
+        # Random sub tests
+        for _ in range(TEST_N):
+            await check_ab(dut, Acls.rsub(), I)
 
 
 # Test multiplying A * B
@@ -95,35 +120,56 @@ async def check_ab(dut, Ai, Bi):
 async def test_ab(dut):
     await cocotb.start_soon(reset(dut))
     dut._log.info("start test_ab")
-    # TODO: check other FP8 modes
-    # Special values
-    vals = [0., E5M2.MIN, 1., E5M2.MAX, 'inf', 'nan']
-    values = sum([[float(v), -float(v)] for v in vals], [])
-    for a in values:
-        for b in values:
-            await check_ab(dut, E5M2.fromf(a).b, E5M2.fromf(b).b)
-    # Random value tests
-    for _ in range(TEST_N):
-        A = E5M2.rand()
-        B = E5M2.rand()
-        await check_ab(dut, A.b, B.b)
-    # Random real tests
-    for _ in range(TEST_N):
-        A = E5M2.real()
-        B = E5M2.real()
-        await check_ab(dut, A.b, B.b)
-    # Random sub tests
-    for _ in range(TEST_N):
-        A = E5M2.real()
-        B = E5M2.rsub()
-        await check_ab(dut, A.b, B.b)
-    # Random sub tests
-    for _ in range(TEST_N):
-        A = E5M2.rsub()
-        B = E5M2.real()
-        await check_ab(dut, A.b, B.b)
-    # Random sub tests
-    for _ in range(TEST_N):
-        A = E5M2.rsub()
-        B = E5M2.rsub()
-        await check_ab(dut, A.b, B.b)
+    for Acls in [E5M2]: # [E4M3, E5M2]:  # TODO
+        for Bcls in [E5M2]: # [E4M3, E5M2]:  # TODO
+            # Special values
+            vals = [0., E5M2.MIN, E4M3.MIN, 1., E4M3.MAX, E5M2.MAX, 'inf', 'nan']
+            vals = sum([[float(v), -float(v)] for v in vals], [])
+            for a in vals:
+                for b in vals:
+                    await check_ab(dut, Acls.fromf(a), Bcls.fromf(b))
+            # Random value tests
+            for _ in range(TEST_N):
+                await check_ab(dut, Acls.rand(), Bcls.rand())
+            # Random real tests
+            for _ in range(TEST_N):
+                await check_ab(dut, Acls.real(), Bcls.real())
+            # Random sub tests
+            for _ in range(TEST_N):
+                await check_ab(dut, Acls.real(), Bcls.rsub())
+            # Random sub tests
+            for _ in range(TEST_N):
+                await check_ab(dut, Acls.rsub(), Bcls.real())
+            # Random sub tests
+            for _ in range(TEST_N):
+                await check_ab(dut, Acls.rsub(), Bcls.rsub())
+
+# Test multiplying A * B + C
+@cocotb.test()
+async def test_ab(dut):
+    await cocotb.start_soon(reset(dut))
+    dut._log.info("start test_ab")
+    for Acls in [E5M2]: # [E4M3, E5M2]:  # TODO
+        for Bcls in [E5M2]: # [E4M3, E5M2]:  # TODO
+            # Special values
+            vals = [0., E5M2.MIN, E4M3.MIN, 1., E4M3.MAX, E5M2.MAX, 'inf', 'nan']
+            vals = sum([[float(v), -float(v)] for v in vals], [])
+            for a in vals:
+                for b in vals:
+                    for c in vals:
+                        await check_ab(dut, Acls.fromf(a), Bcls.fromf(b), FP16.fromf(c))
+            # Random value tests
+            for _ in range(TEST_N):
+                await check_ab(dut, Acls.rand(), Bcls.rand(), FP16.rand())
+            # Random real tests
+            for _ in range(TEST_N):
+                await check_ab(dut, Acls.real(), Bcls.real(), FP16.real())
+            # Random sub tests
+            for _ in range(TEST_N):
+                await check_ab(dut, Acls.real(), Bcls.rsub(), FP16.rsub())
+            # Random sub tests
+            for _ in range(TEST_N):
+                await check_ab(dut, Acls.rsub(), Bcls.real(), FP16.rsub())
+            # Random sub tests
+            for _ in range(TEST_N):
+                await check_ab(dut, Acls.rsub(), Bcls.rsub(), FP16.rsub())

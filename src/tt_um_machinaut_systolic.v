@@ -50,7 +50,7 @@ module pipeIn (
     input wire [15:0] C0, input wire [15:0] C1, input wire [15:0] C2, input wire [15:0] C3,
     // these will go into pipeline 0 this clock
     output wire [7:0] A,  output wire [7:0] B, output wire [15:0] C,
-    output wire Ae, output wire Be, output wire save
+    output wire Afmt, output wire Bfmt, output wire save
 );
     // ci/co are A0 (15:8) and A1 (7:0)
     // ri/ro are B0 (15:8) and B1 (7:0)
@@ -63,8 +63,8 @@ module pipeIn (
     // If state is 3, read A1/B0 from inputs and C1 from accumulator
     // If state is 0, read A0/B1 from outputs and C2 from accumulator
     // If state is 1, read A1/B1 from outputs and C3 from accumulator
-    assign Ae   = (cnt == 3) ? cci[2] : cco[2];
-    assign Be   = (cnt == 3) ? rci[2] : rco[2];
+    assign Afmt = (cnt == 3) ? cci[2] : cco[2];
+    assign Bfmt = (cnt == 3) ? rci[2] : rco[2];
     // TODO ADDRESS DECODE
     assign save = (cnt == 3) ? ((cci[3] == 0) && (rci[3] == 1)) : ((cco[3] == 0) && (rco[3] == 1));
     // TODO COUNT MUX
@@ -136,12 +136,12 @@ module tt_um_machinaut_systolic (
     wire [7:0] PipeA;  // A input to pipeline
     wire [7:0] PipeB;  // B input to pipeline
     wire [15:0] PipeC;  // C input to pipeline
-    wire        PipeAe;  // A exponent size
-    wire        PipeBe;  // B exponent size
+    wire        PipeAfmt;  // A exponent size
+    wire        PipeBfmt;  // B exponent size
     wire        PipeSave;  // Save flag
-    wire [34:0] Pipe0w;  // Pipeline 0 output
+    wire [33:0] Pipe0w;  // Pipeline 0 output
     wire        Pipe0Sw;  // Pipeline 0 output Save
-    reg  [34:0] Pipe0s;  // Pipeline 0 state
+    reg  [33:0] Pipe0s;  // Pipeline 0 state
     reg         Pipe0Ss;  // Pipeline 0 state Save
     wire [31:0] Pipe1w;  // Pipeline 1 output
     wire        Pipe1Sw;  // Pipeline 1 output Save
@@ -219,12 +219,12 @@ module tt_um_machinaut_systolic (
         .rci(row_ctrl_in_full), .rco(row_ctrl_buf_out),
         .C0(C0), .C1(C1), .C2(C2), .C3(C3),
         .A(PipeA), .B(PipeB), .C(PipeC),
-        .Ae(PipeAe), .Be(PipeBe), .save(PipeSave)
+        .Afmt(PipeAfmt), .Bfmt(PipeBfmt), .save(PipeSave)
     );
     // Pipeline stages
     pipe0 p0(
         .A(PipeA), .B(PipeB), .C(PipeC),
-        .Ae(PipeAe), .Be(PipeBe), .save(PipeSave),
+        .Afmt(PipeAfmt), .Bfmt(PipeBfmt), .save(PipeSave),
         .out(Pipe0w), .saveout(Pipe0Sw));
     pipe1 p1(.in(Pipe0s), .save(Pipe0Ss), .out(Pipe1w), .saveout(Pipe1Sw));  
     pipe2 p2(.in(Pipe1s), .save(Pipe1Ss), .out(Pipe2w), .saveout(Pipe2Sw));
