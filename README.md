@@ -36,7 +36,7 @@ Key: ci = col_in, ri = row_in, cc = col_ctrl, rc = row_ctrl, co = col_out, ro = 
 
 Note the control inputs are always passed through exactly from inputs to outputs on the next block.
 However data outputs might be different from data inputs (see modes below).
-
+```
        Block | 0       | 1       | 2       | ...
        Count | 0 1 2 3 | 0 1 2 3 | 0 1 2 3 | ...
 -------------|---------|---------|---------|-----
@@ -49,17 +49,17 @@ However data outputs might be different from data inputs (see modes below).
 col_ctrl_out |         | blk0_cc | blk1_cc | ...
      row_out |         | blk0_ro | blk1_ro | ...
 row_ctrl_out |         | blk0_rc | blk1_rc | ...
-
+```
 ## Modes:
 The shared control bits (from both row and column) decide what to do with the data in the block.
-
+```
 col_ctrl | row_ctrl | mode
 ---------|----------|------------
 0000     | 0000     | passthrough
 0WX0     | 1YZ0     | multiply-accumulate
 1000     | 0100     | read-write accumulator 0
 1100     | 0000     | read-write accumulator 1
-
+```
 Passthrough Mode will pass through data unchanged (current block data will be sent out as the next block).
 
 Multiply-accumulate Mode will interpret the input data as FP8 vectors, and multiply them and accumulate them (see math below).
@@ -68,12 +68,12 @@ W, X, Y, Z specify the FP8 format for the inputs (see below).
 
 Read-write accumulator modes will shift input with the accumulator data and output data.
 This is used to simultaneously read-out the current accumulator state, and write-in the next accumulator state.
-
+```
 read-write accumulator mode | col_ctrl_in | row_ctrl_in | col_in  | row_in  | col_out (next block) | row_out (next block)
 ----------------------------|-------------|-------------|---------|---------|----------------------|---------------------
                           0 | 0100        | 1000        | C0 (new)| C1 (new)| C0 (old)             | C1 (old)
                           1 | 0000        | 1100        | C2 (new)| C3 (new)| C2 (old)             | C3 (old)
-
+```
 ## Multiply-Accumulate Math:
 We interpret the column data as vector A0, A1, and the bits of the control input specify the FP8 format of A0, A1.
 Ditto for row data and B0, B1.  The format bit is 0 if the value is E5M2 and 1 if the value is E4M4.
