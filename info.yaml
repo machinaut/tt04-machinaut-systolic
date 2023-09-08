@@ -186,34 +186,34 @@ documentation:
       ```
 # A description of what the inputs do (e.g. red button, SPI CLK, SPI MOSI, etc).
   inputs:               
-    - Row Data Input bit 0 (lowest bit)
-    - Row Data Input bit 1
-    - Row Data Input bit 2
-    - Row Data Input bit 3
-    - Column Data Input bit 0
-    - Column Data Input bit 1
-    - Column Data Input bit 2
-    - Column Data Input bit 3  (highest bit)
+    - Row Data In 0
+    - Row Data In 1
+    - Row Data In 2
+    - Row Data In 3
+    - Column Data In 0
+    - Column Data In 1
+    - Column Data In 2
+    - Column Data In 3
 # A description of what the outputs do (e.g. status LED, SPI MISO, etc)
   outputs:
-    - Row Data Output bit 0 (lowest bit)
-    - Row Data Output bit 1
-    - Row Data Output bit 2
-    - Row Data Output bit 3
-    - Column Data Output bit 0
-    - Column Data Output bit 1
-    - Column Data Output bit 2
-    - Column Data Output bit 3 (highest bit)
+    - Row Data Out 0
+    - Row Data Out 1
+    - Row Data Out 2
+    - Row Data Out 3
+    - Column Data Out 0
+    - Column Data Out 1
+    - Column Data Out 2
+    - Column Data Out 3
 # A description of what the bidirectional I/O pins do (e.g. I2C SDA, I2C SCL, etc)
   bidirectional:
-    - Row Control Output (lowest bit)
-    - Col Control Output
-    - Row Control Input
-    - Col Control Input
-    - Unused (I was hoping to implement JTAG on these 4 lines, but barely got the design done in time)
+    - Row Control Out
+    - Col Control Out
+    - Row Control In
+    - Col Control In
     - Unused
     - Unused
-    - Unused (highest bit)
+    - Unused
+    - Unused
 
 # The following fields are optional
 # TODO: Set tags appropriately
