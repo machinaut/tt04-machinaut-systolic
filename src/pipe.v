@@ -259,7 +259,7 @@ module pipe3 (
     wire [14:0] Sq; wire [13:0] Sqs; wire [4:0] Sexp; wire [4:0] Sexps;
     wire Sqro; wire Sqrg; wire Sqrr; wire Sqrs;
     wire [11:0] Sqr; wire [4:0] Sexpr;
-    wire [10:0] Sqf; wire [4:0] Sexpf;
+    wire [10:0] Sqf;
     wire [15:0] S;
 
     assign Sq = in[30:16];

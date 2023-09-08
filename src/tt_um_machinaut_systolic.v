@@ -43,10 +43,10 @@ module pipeIn (
     // ci/co are A0 (15:8) and A1 (7:0)
     // ri/ro are B0 (15:8) and B1 (7:0)
     // Aliases for clarity
-    wire [7:0] A0i; wire [7:0] A1i; wire [7:0] A0o; wire [7:0] A1o;
-    wire [7:0] B0i; wire [7:0] B1i; wire [7:0] B0o; wire [7:0] B1o;
-    assign A0i = ci[15:8]; assign A1i = ci[7:0]; assign A0o = co[15:8]; assign A1o = co[7:0];
-    assign B0i = ri[15:8]; assign B1i = ri[7:0]; assign B0o = ro[15:8]; assign B1o = ro[7:0];
+    wire [7:0] A0i; wire [7:0] A0o; wire [7:0] A1o;
+    wire [7:0] B0i; wire [7:0] B0o; wire [7:0] B1o;
+    assign A0i = ci[15:8]; assign A0o = co[15:8]; assign A1o = co[7:0];
+    assign B0i = ri[15:8]; assign B0o = ro[15:8]; assign B1o = ro[7:0];
     // If state is 3, read A0/B0 from inputs and C0 from accumulator
     // If state is 0, read A1/B0 from outputs and C1 from accumulator
     // If state is 1, read A0/B1 from outputs and C2 from accumulator
@@ -79,7 +79,6 @@ module tt_um_machinaut_systolic (
 
     // Genvars
     genvar i;
-    genvar j;
 
     // State
     reg [1:0] count; // Counts to block size
