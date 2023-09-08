@@ -169,7 +169,7 @@ documentation:
           col_in: A_0,K A_1,K (FP8, FP8)
           row_in: B_K,0 B_K,1 (FP8, FP8)
           col_ctrl_in: b0WX0 (where W, X are FP8 format bits for A0, A1)
-          row_ctrl_in: b0YZ0 (where Y, Z are FP8 format bits for B0, B1)
+          row_ctrl_in: b1YZ0 (where Y, Z are FP8 format bits for B0, B1)
       ```
       Finally read out the result from the accumulator, just like you wrote it in
       ```
@@ -184,6 +184,38 @@ documentation:
           col_out: C_1,0 (FP16)
           row_out: C_1,1 (FP16)
       ```
+
+      **Example:**
+
+      I have a 2xK matrix A, with values `A00` through `A1K`, and a Kx2 matrix B, with values `BK0` through `BK1`,
+      and a 2x2 matrix C with values `C00` through `C11`.  We want to compute `A * B + C = D` where D is a 2x2 matrix with values `D00` through `D11`.
+
+      The basic steps are
+      * Write in the initial value of C
+      * Stream in the values of A and B, and multiply-accumulate
+      * Read out the accumulated result, and call it D
+
+      For simplicity, we'll assume all the A and B values are E5M2 format, but remember they can be configured per-value.
+
+      C and D are both in FP16 format.
+
+      Remember that each block is four clock cycles, and each clock cycle 1/4 of the inputs and outputs are transmitted.
+      ```
+      Block | col_in | row_in | cci  | rci  | col_out | row_out
+      ------|--------|--------|------|------|---------|---------
+      0     | C00    | C01    | 1000 | 0100 |         |
+      1     | C10    | C11    | 1100 | 0000 |         |
+      2     | A00A10 | B00B01 | 0000 | 1000 |         |
+      3     | A01A11 | B10B11 | 0000 | 1000 |         |
+      ...   | ...    | ...    | ...  | ...  |         |
+      K + 2 | A0KA1K | BK0BK1 | 0000 | 1000 |         |
+      K + 3 |        |        | 1000 | 0100 | D00     | D01
+      K + 4 |        |        | 1100 | 0000 | D10     | D11
+      ```
+      So we can compute this in just K + 4 blocks, where K is the inner size of the A and B matrix product.
+
+      (Also we can save 2 blocks if C is zero, since that's the reset value of the accumulators)
+
 # A description of what the inputs do (e.g. red button, SPI CLK, SPI MOSI, etc).
   inputs:               
     - Row Data In 0
