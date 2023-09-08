@@ -19,8 +19,8 @@ Shared clock and reset are not shown, but are assumed to be connected to all til
                     |   |
                     v   v
                 |--------|
-    row_in[4] -> |        | -> row_out[4]
-row_ctrl_in -> |        | -> row_ctrl_out
+   row_in[4] -> |        | -> row_out[4]
+ row_ctrl_in -> |        | -> row_ctrl_out
                 |--------|
                     |   |
                     |   v
@@ -37,17 +37,17 @@ Key: ci = col_in, ri = row_in, cc = col_ctrl, rc = row_ctrl, co = col_out, ro = 
 Note the control inputs are always passed through exactly from inputs to outputs on the next block.
 However data outputs might be different from data inputs (see modes below).
 
-        Block | 0       | 1       | 2       | ...
-        Count | 0 1 2 3 | 0 1 2 3 | 0 1 2 3 | ...
+       Block | 0       | 1       | 2       | ...
+       Count | 0 1 2 3 | 0 1 2 3 | 0 1 2 3 | ...
 -------------|---------|---------|---------|-----
-    col_in | blk0_ci | blk1_ci | blk2_ci | ...
-col_ctrl_in | blk0_cc | blk1_cc | blk2_cc | ...
-    row_in | blk0_ri | blk1_ri | blk2_ri | ...
-row_ctrl_in | blk0_rc | blk1_rc | blk2_rc | ...
+      col_in | blk0_ci | blk1_ci | blk2_ci | ...
+ col_ctrl_in | blk0_cc | blk1_cc | blk2_cc | ...
+      row_in | blk0_ri | blk1_ri | blk2_ri | ...
+ row_ctrl_in | blk0_rc | blk1_rc | blk2_rc | ...
 -------------|---------|---------|---------|-----
-    col_out |         | blk0_co | blk1_co | ...
+     col_out |         | blk0_co | blk1_co | ...
 col_ctrl_out |         | blk0_cc | blk1_cc | ...
-    row_out |         | blk0_ro | blk1_ro | ...
+     row_out |         | blk0_ro | blk1_ro | ...
 row_ctrl_out |         | blk0_rc | blk1_rc | ...
 
 ## Modes:
@@ -71,8 +71,8 @@ This is used to simultaneously read-out the current accumulator state, and write
 
 read-write accumulator mode | col_ctrl_in | row_ctrl_in | col_in  | row_in  | col_out (next block) | row_out (next block)
 ----------------------------|-------------|-------------|---------|---------|----------------------|---------------------
-                        0 | 0100        | 1000        | C0 (new)| C1 (new)| C0 (old)             | C1 (old)
-                        1 | 0000        | 1100        | C2 (new)| C3 (new)| C2 (old)             | C3 (old)
+                          0 | 0100        | 1000        | C0 (new)| C1 (new)| C0 (old)             | C1 (old)
+                          1 | 0000        | 1100        | C2 (new)| C3 (new)| C2 (old)             | C3 (old)
 
 ## Multiply-Accumulate Math:
 We interpret the column data as vector A0, A1, and the bits of the control input specify the FP8 format of A0, A1.
@@ -85,9 +85,9 @@ The accumulators (C0, C1, C2, C3) are all FP16.
             |       |
             v       v
         |-------|-------|
-B0 -> |  C0   |  C1   | -> B0
+  B0 -> |  C0   |  C1   | -> B0
         |-------|-------|  (prev)
-B1 -> |  C2   |  C3   | -> B1
+  B1 -> |  C2   |  C3   | -> B1
         |-------|-------|
             |         |
             v         v
