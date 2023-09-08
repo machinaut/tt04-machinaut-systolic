@@ -30,7 +30,6 @@ documentation:
       Implements a 2x2 outer product, such that it can stream accumulate a product of a 2xN and Nx2 matrix.
       It's pipelined to run 4-clock-cycle blocks, and has a single 4-stage floating point multiply-accumulate.
 
-
       There are 4 column data inputs and 1 column control input, and similar for outputs, and same for row inputs and row outputs.
       So in a block, the column and row inputs reads 2 bytes, the column and row outputs write 2 bytes,
       and the control inputs and outputs read or write 4 bits.
@@ -55,6 +54,7 @@ documentation:
 # Instructions on how someone could test your project, include things like what buttons do what and how to set the clock if needed
   how_to_test:  |
       I have no idea what clock speeds are safe for this, so probably start out slow and work your way up until there are glitches.
+      (This is like only 4 pipeline stages for a full multiply-accumulate, so it has some nasty propagation chains)
 
       To compute A * B + C, where A is a 2xN matrix, B is a Nx2 matrix, and C is a 2x2 matrix, do the following:
       (A and B can be mixtures of FP8 formats, and C is FP16)
@@ -117,7 +117,7 @@ documentation:
     - Col Control Output
     - Row Control Input
     - Col Control Input
-    - Unused
+    - Unused (I was hoping to implement JTAG on these 4 lines, but barely got the design done in time)
     - Unused
     - Unused
     - Unused (highest bit)
