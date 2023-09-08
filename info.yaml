@@ -30,18 +30,66 @@ documentation:
       Implements a 2x2 outer product, such that it can stream accumulate a product of a 2xN and Nx2 matrix.
       It's pipelined to run 4-clock-cycle blocks, and has a single 4-stage floating point multiply-accumulate.
 
+
       There are 4 column data inputs and 1 column control input, and similar for outputs, and same for row inputs and row outputs.
-      The column inputs get 4 bits of data per cycle to assemble an A vector of two FP8 value in a block.
-      The row inputs get 4 bits of data per cycle to assemble a B vector of two FP8 values in a block.
-      The column and row controls can be used to specify whether the input data (in either position) is E5M2 or E4M3 formats.
+      So in a block, the column and row inputs reads 2 bytes, the column and row outputs write 2 bytes,
+      and the control inputs and outputs read or write 4 bits.
 
-      See this paper for more info on the format: https://arxiv.org/pdf/2209.05433.pdf
+      Each block controls what should happen in the following block.
 
+      The control inputs are always passed through directly unchanged to outputs.
 
+      The control bits specify what to do with the data in the block.  The supported values are:
+      col_ctrl : row_ctrl
+      passthrough mode:
+      0000     : 0000     - pass through data unchanged (current block data will be sent out as the next block)
+      multiply-accumulate mode:
+      0WX0     : 1YZ0     - read in A0A1 vector in column, B0B1 vector in row, and W, X, Y, Z specify input FP8 formats for A0, A1, B0, B1 (0 = E5M2, 1 = E4M3).  See this paper for more info on the format: https://arxiv.org/pdf/2209.05433.pdf
+      read-write accumulator modes:
+      1000     : 0100     - save inputs to C0 and C1, and write out previous C0 / C1 values
+      1100     : 0000     - save inputs to C2 and C3, and write out previous C2 / C3 values
+
+      Notionally, this could be used in a systolic tile pattern of N * M tiles, moving data along columns and rows.  This hasn't been tested.
+      Note that this still works with reading and writing accumulators since all the values are shifted block by block along the columns and rows.
 
 # Instructions on how someone could test your project, include things like what buttons do what and how to set the clock if needed
   how_to_test:  |
-      TODO: Explain how to test it.
+      I have no idea what clock speeds are safe for this, so probably start out slow and work your way up until there are glitches.
+
+      To compute A * B + C, where A is a 2xN matrix, B is a Nx2 matrix, and C is a 2x2 matrix, do the following:
+      (A and B can be mixtures of FP8 formats, and C is FP16)
+
+      Use the read-write accumulator mode to write in C over two blocks
+
+      Block 0:
+          col_in: C_0,0 (FP16)
+          row_in: C_0,1 (FP16)
+          col_ctrl_in: b1000
+          row_ctrl_in: b0100
+      Block 1:
+          col_in: C_1,0 (FP16)
+          row_in: C_1,1 (FP16)
+          col_ctrl_in: b1100
+          row_ctrl_in: b0000
+      
+      Then use the multiply-accumulate mode for N blocks
+      Block K:
+          col_in: A_0,K A_1,K (FP8, FP8)
+          row_in: B_K,0 B_K,1 (FP8, FP8)
+          col_ctrl_in: b0WX0 (where W, X are FP8 format bits for A0, A1)
+          row_ctrl_in: b0YZ0 (where Y, Z are FP8 format bits for B0, B1)
+
+      Finally read out the result from the accumulator, just like you wrote it in
+      Block 0:  (Note we care about the outputs here)
+          col_ctrl_in: b1000
+          row_ctrl_in: b0100
+          col_out: C_0,0 (FP16)
+          row_out: C_0,1 (FP16)
+      Block 1:  (Note we care about the outputs here)
+          col_ctrl_in: b1100
+          row_ctrl_in: b0000
+          col_out: C_1,0 (FP16)
+          row_out: C_1,1 (FP16)
 
 # A description of what the inputs do (e.g. red button, SPI CLK, SPI MOSI, etc).
   inputs:               
