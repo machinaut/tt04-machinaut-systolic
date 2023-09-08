@@ -59,12 +59,12 @@ module pipeIn (
     wire [7:0] B0i; wire [7:0] B1i; wire [7:0] B0o; wire [7:0] B1o;
     assign A0i = ci[15:8]; assign A1i = ci[7:0]; assign A0o = co[15:8]; assign A1o = co[7:0];
     assign B0i = ri[15:8]; assign B1i = ri[7:0]; assign B0o = ro[15:8]; assign B1o = ro[7:0];
-    // If state is 2, read A0/B0 from inputs and C0 from accumulator
-    // If state is 3, read A1/B0 from inputs and C1 from accumulator
-    // If state is 0, read A0/B1 from outputs and C2 from accumulator
-    // If state is 1, read A1/B1 from outputs and C3 from accumulator
-    assign Afmt = (cnt == 3) ? cci[2] : cco[2];
-    assign Bfmt = (cnt == 3) ? rci[2] : rco[2];
+    // If state is 3, read A0/B0 from inputs and C0 from accumulator
+    // If state is 0, read A1/B0 from outputs and C1 from accumulator
+    // If state is 1, read A0/B1 from outputs and C2 from accumulator
+    // If state is 2, read A1/B1 from outputs and C3 from accumulator
+    assign Afmt = (cnt == 3) ? cci[2] : (cnt == 0) ? cco[1] : (cnt == 1) ? cco[2] : cco[1];
+    assign Bfmt = (cnt == 3) ? rci[2] : (cnt == 0) ? rco[2] : (cnt == 1) ? rco[1] : rco[1];
     // TODO ADDRESS DECODE
     assign save = (cnt == 3) ? ((cci[3] == 0) && (rci[3] == 1)) : ((cco[3] == 0) && (rco[3] == 1));
     // TODO COUNT MUX

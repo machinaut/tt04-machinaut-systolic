@@ -199,17 +199,30 @@ async def send_block(
 
 
 # Address for blocks
-ADDR = {
-    0: {'col_ctrl': '00', 'row_ctrl': '00'},  # passthrough
-    1: {'col_ctrl': '00', 'row_ctrl': '10'},  # A-E5 B-E5
-    2: {'col_ctrl': '01', 'row_ctrl': '10'},  # A-E4 B-E5
-    3: {'col_ctrl': '00', 'row_ctrl': '11'},  # A-E5 B-E4
-    4: {'col_ctrl': '01', 'row_ctrl': '11'},  # A-E4 B-E4
-    6: {'col_ctrl': '10', 'row_ctrl': '01'},  # C-Low
-    7: {'col_ctrl': '11', 'row_ctrl': '00'},  # C-High
+ADDR = { -1: {},  # manually set
+    0: {'col_ctrl': '0000', 'row_ctrl': '0000'},  # passthrough
+    1: {'col_ctrl': '0000', 'row_ctrl': '1000'},  # A B
+    6: {'col_ctrl': '1000', 'row_ctrl': '0100'},  # C-Low
+    7: {'col_ctrl': '1100', 'row_ctrl': '0000'},  # C-High
+    (0, 0, 0, 0): {'col_ctrl': '0000', 'row_ctrl': '1000'},  # A0-E5 A1-E5 B0-E5 B1-E5
+    (0, 0, 0, 1): {'col_ctrl': '0000', 'row_ctrl': '1010'},  # A0-E5 A1-E5 B0-E5 B1-E4
+    (0, 0, 1, 0): {'col_ctrl': '0000', 'row_ctrl': '1100'},  # A0-E5 A1-E5 B0-E4 B1-E5
+    (0, 0, 1, 1): {'col_ctrl': '0000', 'row_ctrl': '1110'},  # A0-E5 A1-E5 B0-E4 B1-E4
+    (0, 1, 0, 0): {'col_ctrl': '0010', 'row_ctrl': '1000'},  # A0-E5 A1-E4 B0-E5 B1-E5
+    (0, 1, 0, 1): {'col_ctrl': '0010', 'row_ctrl': '1010'},  # A0-E5 A1-E4 B0-E5 B1-E4
+    (0, 1, 1, 0): {'col_ctrl': '0010', 'row_ctrl': '1100'},  # A0-E5 A1-E4 B0-E4 B1-E5
+    (0, 1, 1, 1): {'col_ctrl': '0010', 'row_ctrl': '1110'},  # A0-E5 A1-E4 B0-E4 B1-E4
+    (1, 0, 0, 0): {'col_ctrl': '0100', 'row_ctrl': '1000'},  # A0-E4 A1-E5 B0-E5 B1-E5
+    (1, 0, 0, 1): {'col_ctrl': '0100', 'row_ctrl': '1010'},  # A0-E4 A1-E5 B0-E5 B1-E4
+    (1, 0, 1, 0): {'col_ctrl': '0100', 'row_ctrl': '1100'},  # A0-E4 A1-E5 B0-E4 B1-E5
+    (1, 0, 1, 1): {'col_ctrl': '0100', 'row_ctrl': '1110'},  # A0-E4 A1-E5 B0-E4 B1-E4
+    (1, 1, 0, 0): {'col_ctrl': '0110', 'row_ctrl': '1000'},  # A0-E4 A1-E4 B0-E5 B1-E5
+    (1, 1, 0, 1): {'col_ctrl': '0110', 'row_ctrl': '1010'},  # A0-E4 A1-E4 B0-E5 B1-E4
+    (1, 1, 1, 0): {'col_ctrl': '0110', 'row_ctrl': '1100'},  # A0-E4 A1-E4 B0-E4 B1-E5
+    (1, 1, 1, 1): {'col_ctrl': '0110', 'row_ctrl': '1110'},  # A0-E4 A1-E4 B0-E4 B1-E4
 }
-ADDR_IN = {a: {f"{k}_in": f"{v}00" for k, v in v.items()} for a, v in ADDR.items()}
-ADDR_OUT = {a: {f"{k}_out": f"{v}00" for k, v in v.items()} for a, v in ADDR.items()}
+ADDR_IN = {a: {f"{k}_in": f"{v}" for k, v in v.items()} for a, v in ADDR.items()}
+ADDR_OUT = {a: {f"{k}_out": f"{v}" for k, v in v.items()} for a, v in ADDR.items()}
 
 
 # Test a sequence of blocks
@@ -227,7 +240,9 @@ async def test_sequence(dut, *, blocks):
             Ro = block['ro']
             Cof = Co.f
             Rof = Ro.f
+            dut._log.info(f"  sending block {params}")
             col_out, col_ctrl_out, row_out, row_ctrl_out = await send_block(dut, **params)
+            dut._log.info(f"  received block {col_out} {col_ctrl_out} {row_out} {row_ctrl_out}")
             ro = FP16.fromh(row_out)
             co = FP16.fromh(col_out)
             cof = co.f
@@ -238,6 +253,7 @@ async def test_sequence(dut, *, blocks):
             params.update(ADDR_OUT[prev.get('a', 0)])
             params['col_out'] = block.get('co', prev.get('ci', '0000'))
             params['row_out'] = block.get('ro', prev.get('ri', '0000'))
+            dut._log.info(f"  testing block {params}")
             await test_block(dut, **params)
 
 
@@ -342,6 +358,14 @@ def mul22(Ah, Bh, Ci=None, verbose=False):
     return C0, C1, C2, C3
 
 
+def mulfmt(A0, A1, B0, B1, C0=None, C1=None, C2=None, C3=None):
+    C0 = fma(A0, B0, C0)
+    C1 = fma(A1, B0, C1)
+    C2 = fma(A0, B1, C2)
+    C3 = fma(A1, B1, C3)
+    return C0, C1, C2, C3
+
+
 @cocotb.test()
 async def test_1x1(dut):
     dut._log.info("start test_1x1")
@@ -357,6 +381,38 @@ async def test_1x1(dut):
         blocks = [
             {'a': 1, 'ci': Ah, 'ri': Bh,},
             {'a': 6,},
+            {'a': 7, 'co': C0, 'ro': C1,},
+            {'a': 0, 'co': C2, 'ro': C3,},
+            {},
+        ]
+        await test_sequence(dut, blocks=blocks)
+
+
+@cocotb.test()
+async def test_fmt(dut):
+    dut._log.info("start test_fmt")
+    await cocotb.start_soon(reset(dut))
+    for _ in range(TEST_N):
+        A0fmt = random.randint(0, 1)
+        A1fmt = random.randint(0, 1)
+        B0fmt = random.randint(0, 1)
+        B1fmt = random.randint(0, 1)
+        a = (A0fmt, A1fmt, B0fmt, B1fmt)
+        A0cls = E4M3 if A0fmt else E5M2
+        A1cls = E4M3 if A1fmt else E5M2
+        B0cls = E4M3 if B0fmt else E5M2
+        B1cls = E4M3 if B1fmt else E5M2
+        A0 = A0cls.rand()
+        A1 = A1cls.rand()
+        B0 = B0cls.rand()
+        B1 = B1cls.rand()
+        C0, C1, C2, C3 = mulfmt(A0, A1, B0, B1)
+        cc = f'0{A0fmt}{A1fmt}0'
+        rc = f'1{B0fmt}{B1fmt}0'
+        dut._log.info(f"  test_fmt {A0} {B0} {C0}")
+        blocks = [
+            {'a': a, 'ci': A0.h + A1.h, 'ri': B0.h + B1.h,},
+            {'a': 6, },
             {'a': 7, 'co': C0, 'ro': C1,},
             {'a': 0, 'co': C2, 'ro': C3,},
             {},
